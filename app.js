@@ -1,5 +1,40 @@
 let chart;
 let selectedData = [];
+let startDateParam;
+let endDateParam;
+
+let startSelection;
+let endSelection;
+let formattedData = [];
+
+function getFormattedData(startDate, endDate, historicalData) {
+  let filteredData
+  if (!startDate || !endDate) {
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+    filteredData = historicalData.filter(item => {
+      const date = new Date(item.x);
+      return date >= oneYearAgo && date <= today;
+    });
+  } else {
+    const startDateFilter = new Date(startDate);
+    const endDateFilter = new Date(endDate);
+
+    // Filter data based on query parameters
+    filteredData = historicalData.filter(item => {
+      const date = new Date(item.x);
+      return date >= startDateFilter && date <= endDateFilter;
+    });
+
+  }
+
+  return filteredData.map(item => ({
+    x: new Date(item.x).getTime(),
+    y: item.y || 0
+  }));
+}
 
 // Initialize Chart
 async function loadChart() {
@@ -7,51 +42,18 @@ async function loadChart() {
     const response = await fetch('http://127.0.0.1:5000/get_data');
     const historicalData = await response.json();
     // Get query parameters for start and end dates
-    const urlParams = new URLSearchParams(window.location.search);
-    const startDateParam = urlParams.get('startDate');
-    const endDateParam = urlParams.get('endDate');
-    let filteredData;
+    let urlParams = new URLSearchParams(window.location.search);
+    startDateParam = urlParams.get('startDate');
+    endDateParam = urlParams.get('endDate');
     if (startDateParam && endDateParam) {
       const startDateInput = document.getElementById('start-date');
       const endDateInput = document.getElementById('end-date');
 
       startDateInput.value = startDateParam;
       endDateInput.value = endDateParam;
-
-      const startDate = new Date(startDateParam);
-      const endDate = new Date(endDateParam);
-
-      // Filter data based on query parameters
-      filteredData = historicalData.filter(item => {
-        const date = new Date(item.x);
-        return date >= startDate && date <= endDate;
-      });
-    } else {
-      // Default filter: Last year
-      const today = new Date();
-      const oneYearAgo = new Date(today);
-      oneYearAgo.setFullYear(today.getFullYear() - 1);
-
-      filteredData = historicalData.filter(item => {
-        const date = new Date(item.x);
-        return date >= oneYearAgo && date <= today;
-      });
     }
-    // // Get the current date and one year ago
-    // const today = new Date();
-    // const oneYearAgo = new Date(today);
-    // oneYearAgo.setFullYear(today.getFullYear() - 1);
-    //
-    // // Filter data for the last year
-    // const defaultData = historicalData.filter(item => {
-    //   const date = new Date(item.x);
-    //   return date >= oneYearAgo && date <= today;
-    // });
 
-    const formattedData = filteredData.map(item => ({
-      x: new Date(item.x).getTime(),
-      y: item.y || 0
-    }));
+    formattedData = getFormattedData(startDateParam, endDateParam, historicalData);
 
     // Initialize the chart
     chart = new ApexCharts(document.querySelector("#chart"), {
@@ -70,26 +72,50 @@ async function loadChart() {
           }
         },
         selection: {
-          enabled: true, // Ensure selection is globally enabled
+          enabled: false, // Ensure selection is globally enabled
           type: 'x', // Restrict selection to x-axis
         },
         events: {
+          markerClick: function (event, chartContext, opts) {
+            // console.log("Marker Click", opts)
+            const selectedIndex = opts.dataPointIndex;
+            formattedData = getFormattedData(startDateParam, endDateParam, historicalData);
+            const item = formattedData[selectedIndex];
+            // set end of selection
+            if (startSelection && endSelection) {
+              startSelection = item
+              endSelection = undefined
+            } else if (startSelection) {
+              if (
+                startSelection['x'] < item['x']
+              ) {
+                endSelection = item
+              } else {
+                startSelection = item
+              }
+            } else {
+              startSelection = item
+            }
+            loadSelectionChart()
+          },
           selection: async (event, {xaxis}, config) => {
-            console.log("Selection Event:", event, xaxis);
+            // urlParams = new URLSearchParams(window.location.search);
+            // startDateParam = urlParams.get('startDate');
+            // endDateParam = urlParams.get('endDate');
+            // resetSelection()
+
+            formattedData = getFormattedData(startDateParam, endDateParam, historicalData);
+
             if (xaxis) {
               const {min, max} = xaxis; // Destructure min and max from xaxis
 
-              console.log("Selected x-axis range:", xaxis);
               // get num of data points in selected range
               const numPoints = Math.ceil((max - min) / (1000 * 60 * 60 * 24));
-              console.log("Number of data points in selected range:", numPoints);
 
               // Filter the selected data based on the x-axis range
               selectedData = formattedData.filter(point => {
                 return point.x >= min && point.x <= max;
               });
-
-              console.log("Filtered Selected Data:", selectedData);
 
               // Show loading indicator
               const loadingElement = document.getElementById('loading');
@@ -107,7 +133,6 @@ async function loadChart() {
                 });
 
                 const dcaResults = await response.json();
-                console.log("DCA Results:", dcaResults);
                 console.log(dcaResults.exponential)
 
                 // Update chart with the selected data and DCA results
@@ -174,6 +199,91 @@ async function loadChart() {
   }
 }
 
+async function loadSelectionChart() {
+  // change the color here
+  // change the marker color from start selection to endselection
+
+  if (startSelection && endSelection) {
+    const min = startSelection['x']
+    const max = endSelection['x']
+    selectedData = formattedData.filter(point => {
+      return point.x >= min && point.x <= max;
+    });
+    // Define custom colors for markers
+    const markerColors = formattedData.map(point => {
+      if (point.x >= min && point.x <= max) {
+        return '#FF0000'; // Highlight color for selected range
+      }
+      return '#0000FF'; // Default color for other points
+    });
+    // Show loading indicator
+    const loadingElement = document.getElementById('loading');
+    loadingElement.style.display = 'block';
+
+    try {
+      // Perform DCA calculation
+      const response = await fetch('http://127.0.0.1:5000/calculate_dca', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({selected_area: selectedData})
+      });
+
+      const dcaResults = await response.json();
+      console.log(dcaResults.exponential)
+
+      // // Update chart with the selected data and DCA results
+      // chart.updateOptions({
+      //   markers: {
+      //     size: 6,
+      //     colors: markerColors, // Apply dynamic colors
+      //     strokeColors: '#fff',
+      //     strokeWidth: 2,
+      //     shape: 'circle',
+      //     hover: {
+      //       size: 8
+      //     }
+      //   },
+      //   series: [
+      //     { name: "Selected Data", data: formattedData },
+      //     { name: "Exponential Decline", data: dcaResults.exponential },
+      //     { name: "Harmonic Decline", data: dcaResults.harmonic },
+      //     { name: "Hyperbolic Decline", data: dcaResults.hyperbolic },
+      //   ]
+      // });
+
+      chart.updateSeries([
+        {name: "Selected Data", data: formattedData},
+        {name: "Exponential Decline", data: dcaResults.exponential},
+        {name: "Harmonic Decline", data: dcaResults.harmonic},
+        {name: "Hyperbolic Decline", data: dcaResults.hyperbolic},
+        {name: "Selected Range", data: selectedData},
+      ]);
+    } catch (error) {
+      console.error("Error during DCA calculation:", error);
+      alert("An error occurred while performing DCA analysis.");
+    } finally {
+      // Hide loading indicator
+      loadingElement.style.display = 'none';
+    }
+  }
+}
+
+
+function resetSelection() {
+  chart.updateOptions({
+    chart: {
+      selection: {
+        xaxis: {
+          min: undefined,
+          max: undefined
+        }
+      }
+    }
+  })
+}
+
 // Handle Date Filter
 document.getElementById('filter-btn').addEventListener('click', async () => {
   const startDate = document.getElementById('start-date').value;
@@ -183,10 +293,12 @@ document.getElementById('filter-btn').addEventListener('click', async () => {
     alert("Please select both start and end dates.");
     return;
   }
-  // Update query parameters
+  resetSelection()
   const url = new URL(window.location.href);
   url.searchParams.set('startDate', startDate);
   url.searchParams.set('endDate', endDate);
+  startDateParam = startDate;
+  endDateParam = endDate;
   window.history.pushState({}, '', url);
 
   try {
@@ -198,7 +310,7 @@ document.getElementById('filter-btn').addEventListener('click', async () => {
       return date >= new Date(startDate) && date <= new Date(endDate);
     });
 
-    const formattedData = filteredData.map(item => ({
+    formattedData = filteredData.map(item => ({
       x: new Date(item.x).getTime(),
       y: item.y || 0
     }));
@@ -215,6 +327,8 @@ document.getElementById('filter-btn').addEventListener('click', async () => {
 });
 
 document.getElementById('clear-filter-btn').addEventListener('click', async () => {
+  resetSelection()
+
   const url = new URL(window.location.href);
   url.searchParams.delete('startDate');
   url.searchParams.delete('endDate');
@@ -224,6 +338,7 @@ document.getElementById('clear-filter-btn').addEventListener('click', async () =
 
   startDateInput.value = '';
   endDateInput.value = '';
+  resetSelection()
 
   try {
     const response = await fetch('http://127.0.0.1:5000/get_data');
