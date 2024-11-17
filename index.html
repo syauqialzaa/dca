@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decline Curve Analysis</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+<h1>Decline Curve Analysis</h1>
+<div>
+  <label for="start-date">Start Date:</label>
+  <input type="date" id="start-date" />
+  <label for="end-date">End Date:</label>
+  <input type="date" id="end-date" />
+  <button id="filter-btn">Filter</button>
+</div>
+
+<div id="chart"></div>
+
+<div id="loading" style="display: none;">Processing DCA...</div>
+
+<button id="analyze-btn">Analyze DCA</button>
+<button id="ml-btn">Analyze ML</button>
+
+<!-- Include external JS file -->
+<script src="app.js"></script>
+</body>
+</html>
