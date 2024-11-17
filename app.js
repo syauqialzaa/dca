@@ -6,19 +6,49 @@ async function loadChart() {
   try {
     const response = await fetch('http://127.0.0.1:5000/get_data');
     const historicalData = await response.json();
+    // Get query parameters for start and end dates
+    const urlParams = new URLSearchParams(window.location.search);
+    const startDateParam = urlParams.get('startDate');
+    const endDateParam = urlParams.get('endDate');
+    let filteredData;
+    if (startDateParam && endDateParam) {
+      const startDateInput = document.getElementById('start-date');
+      const endDateInput = document.getElementById('end-date');
 
-    // Get the current date and one year ago
-    const today = new Date();
-    const oneYearAgo = new Date(today);
-    oneYearAgo.setFullYear(today.getFullYear() - 1);
+      startDateInput.value = startDateParam;
+      endDateInput.value = endDateParam;
 
-    // Filter data for the last year
-    const defaultData = historicalData.filter(item => {
-      const date = new Date(item.x);
-      return date >= oneYearAgo && date <= today;
-    });
+      const startDate = new Date(startDateParam);
+      const endDate = new Date(endDateParam);
 
-    const formattedData = defaultData.map(item => ({
+      // Filter data based on query parameters
+      filteredData = historicalData.filter(item => {
+        const date = new Date(item.x);
+        return date >= startDate && date <= endDate;
+      });
+    } else {
+      // Default filter: Last year
+      const today = new Date();
+      const oneYearAgo = new Date(today);
+      oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+      filteredData = historicalData.filter(item => {
+        const date = new Date(item.x);
+        return date >= oneYearAgo && date <= today;
+      });
+    }
+    // // Get the current date and one year ago
+    // const today = new Date();
+    // const oneYearAgo = new Date(today);
+    // oneYearAgo.setFullYear(today.getFullYear() - 1);
+    //
+    // // Filter data for the last year
+    // const defaultData = historicalData.filter(item => {
+    //   const date = new Date(item.x);
+    //   return date >= oneYearAgo && date <= today;
+    // });
+
+    const formattedData = filteredData.map(item => ({
       x: new Date(item.x).getTime(),
       y: item.y || 0
     }));
@@ -44,48 +74,58 @@ async function loadChart() {
           type: 'x', // Restrict selection to x-axis
         },
         events: {
-          selection: async (event, chartContext, config) => {
-            if (config.xaxis) {
-              selectedData = formattedData.filter(
-                (point) =>
-                  point.x >= config.xaxis.min &&
-                  point.x <= config.xaxis.max
-              );
+          selection: async (event, {xaxis}, config) => {
+            console.log("Selection Event:", event, xaxis);
+            if (xaxis) {
+              const {min, max} = xaxis; // Destructure min and max from xaxis
 
-              console.log("Selected Data:", selectedData);
+              console.log("Selected x-axis range:", xaxis);
+              // get num of data points in selected range
+              const numPoints = Math.ceil((max - min) / (1000 * 60 * 60 * 24));
+              console.log("Number of data points in selected range:", numPoints);
+
+              // Filter the selected data based on the x-axis range
+              selectedData = formattedData.filter(point => {
+                return point.x >= min && point.x <= max;
+              });
+
+              console.log("Filtered Selected Data:", selectedData);
 
               // Show loading indicator
               const loadingElement = document.getElementById('loading');
               loadingElement.style.display = 'block';
 
-              // Perform DCA Calculation
+
               try {
+                // Perform DCA calculation
                 const response = await fetch('http://127.0.0.1:5000/calculate_dca', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                   },
-                  body: JSON.stringify({ selected_area: selectedData })
+                  body: JSON.stringify({selected_area: selectedData})
                 });
 
                 const dcaResults = await response.json();
+                console.log("DCA Results:", dcaResults);
+                console.log(dcaResults.exponential)
 
-                // Update chart with DCA results
+                // Update chart with the selected data and DCA results
                 chart.updateSeries([
-                  { name: "Historical Data", data: selectedData },
-                  { name: "Exponential Decline", data: dcaResults.exponential },
-                  { name: "Harmonic Decline", data: dcaResults.harmonic },
-                  { name: "Hyperbolic Decline", data: dcaResults.hyperbolic },
+                  {name: "Selected Data", data: formattedData},
+                  {name: "Exponential Decline", data: dcaResults.exponential},
+                  {name: "Harmonic Decline", data: dcaResults.harmonic},
+                  {name: "Hyperbolic Decline", data: dcaResults.hyperbolic},
                 ]);
               } catch (error) {
-                console.error("Error performing DCA calculation:", error);
-                alert("An error occurred while processing DCA.");
+                console.error("Error during DCA calculation:", error);
+                alert("An error occurred while performing DCA analysis.");
               } finally {
                 // Hide loading indicator
                 loadingElement.style.display = 'none';
               }
             } else {
-              console.warn("No xaxis selection range provided.");
+              console.warn("xaxis range not provided.");
             }
           }
         }
@@ -143,6 +183,11 @@ document.getElementById('filter-btn').addEventListener('click', async () => {
     alert("Please select both start and end dates.");
     return;
   }
+  // Update query parameters
+  const url = new URL(window.location.href);
+  url.searchParams.set('startDate', startDate);
+  url.searchParams.set('endDate', endDate);
+  window.history.pushState({}, '', url);
 
   try {
     const response = await fetch('http://127.0.0.1:5000/get_data');
@@ -169,6 +214,41 @@ document.getElementById('filter-btn').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('clear-filter-btn').addEventListener('click', async () => {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('startDate');
+  url.searchParams.delete('endDate');
+  window.history.pushState({}, '', url);
+  const startDateInput = document.getElementById('start-date');
+  const endDateInput = document.getElementById('end-date');
+
+  startDateInput.value = '';
+  endDateInput.value = '';
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/get_data');
+    const historicalData = await response.json();
+    // Default filter: Last year
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+    const filteredData = historicalData.filter(item => {
+      const date = new Date(item.x);
+      return date >= oneYearAgo && date <= today;
+    });
+
+    chart.updateSeries([
+      {
+        name: "Historical Data",
+        data: filteredData
+      }
+    ]);
+  } catch (error) {
+    console.error("Error clearing filter:", error);
+  }
+})
+
 
 // Handle DCA Analysis
 document.getElementById('analyze-btn').addEventListener('click', async () => {
@@ -182,16 +262,16 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ selected_area: selectedData })
+    body: JSON.stringify({selected_area: selectedData})
   });
 
   const dcaResults = await response.json();
 
   chart.updateSeries([
-    { name: "Historical Data", data: selectedData },
-    { name: "Exponential Decline", data: dcaResults.exponential },
-    { name: "Harmonic Decline", data: dcaResults.harmonic },
-    { name: "Hyperbolic Decline", data: dcaResults.hyperbolic },
+    {name: "Historical Data", data: selectedData},
+    {name: "Exponential Decline", data: dcaResults.exponential},
+    {name: "Harmonic Decline", data: dcaResults.harmonic},
+    {name: "Hyperbolic Decline", data: dcaResults.hyperbolic},
   ]);
 });
 
