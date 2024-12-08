@@ -115,10 +115,12 @@ def get_history():
 
     # Sort data
     data = data.sort_values(by='TEST_DATE')
-
+    data['JOB_CODE'] = data['JOB_CODE'].astype(str).replace('nan','')
+#     data['JOB_CODE'] = data['JOB_CODE'].apply(lambda x: x if pd.notnull(x) else '')
+#     update if JObCode is null / empty / undefined then set to empty string
     # Convert to JSON-friendly format
-    data_json = data[['TEST_DATE', 'TSTOIL', 'TSTFLUID']].rename(
-        columns={'TEST_DATE': 'Date', 'TSTOIL': 'Production', 'TSTFLUID': 'Fluid'}
+    data_json = data[['TEST_DATE', 'TSTOIL', 'TSTFLUID','JOB_CODE']].rename(
+        columns={'TEST_DATE': 'Date', 'TSTOIL': 'Production', 'TSTFLUID': 'Fluid','JOB_CODE': 'JobCode'}
     )
     data_json['Date'] = data_json['Date'].dt.strftime('%Y-%m-%d')
     history = data_json.to_dict(orient='records')
@@ -128,9 +130,13 @@ def get_history():
     prev_value = None
     for record in history:
         current_prod = record['Production']
+        current_job_code = record.get('JobCode', '').strip()  # Get JobCode, default to empty string if missing
         if prev_value is None or current_prod != prev_value:
-            filtered_history.append(record)
+          filtered_history.append(record)
+        elif current_prod == prev_value and current_job_code:
+          filtered_history[-1] = record
         prev_value = current_prod
+
 
     return jsonify(filtered_history)
 
@@ -253,7 +259,6 @@ def calculate_dca3():
     except Exception as e:
         logging.error(f"Error in calculate_dca3: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/calculate_dca', methods=['POST'])
 def calculate_dca():

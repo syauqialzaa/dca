@@ -3,6 +3,29 @@ h1 {
   margin-bottom: 20px;
 }
 
+.custom-tooltip {
+  background-color: #fff; /* White background */
+  padding-top: 12px; /* Comfortable padding */
+  padding-left: 12px;
+  padding-right: 12px;
+  flex-direction: column;
+  align-items: start;
+
+}
+
+.custom-tooltip .date {
+  font-size: 14px; /* Slightly larger font for the date */
+  font-weight: bold; /* Emphasize the date */
+  color: #000; /* Darker color for better visibility */
+  margin-bottom: 8px; /* Add spacing below the date */
+  display: block;
+  text-align: center; /* Center-align the date */
+}
+
+.custom-tooltip-content {
+  font-size: 14px;
+}
+
 div {
   display: flex;
   align-items: center;
