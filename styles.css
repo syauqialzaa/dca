@@ -9,6 +9,34 @@ div {
   gap: 10px;
   margin-bottom: 20px;
 }
+/* Additional styles for the form section */
+.form-group {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+/* Dropdown select styling */
+select {
+  padding: 10px 15px;
+  font-size: 16px;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+}
+
+select:hover {
+  border-color: #007bff;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+select:focus {
+  border-color: #0056b3;
+  box-shadow: 0px 4px 8px rgba(0, 86, 179, 0.2);
+}
 
 /* Style for input fields (Start Date and End Date) */
 input[type="date"] {
@@ -64,10 +92,17 @@ button:active {
   background-color: #19692c;
 }
 
-/* Style for the loading message */
 #loading {
-  color: #6c757d;
-  font-size: 18px;
+  text-align: center;
+  font-size: 1.2em;
   font-weight: bold;
-  margin-top: 20px;
+  color: #007bff;
 }
+
+#noData {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: red;
+  text-align: center;
+}
+

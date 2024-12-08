@@ -254,7 +254,7 @@ async function loadSelectionChart() {
       // });
 
       chart.updateSeries([
-        {name: "Selected Data", data: formattedData},
+        {name: "Actual Data", data: formattedData},
         {name: "Exponential Decline", data: dcaResults.exponential},
         {name: "Harmonic Decline", data: dcaResults.harmonic},
         {name: "Hyperbolic Decline", data: dcaResults.hyperbolic},
@@ -389,6 +389,71 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
     {name: "Hyperbolic Decline", data: dcaResults.hyperbolic},
   ]);
 });
+
+document.getElementById('ml-btn').addEventListener('click', async () => {
+  const loadingElement = document.getElementById('loading');
+  loadingElement.style.display = 'block'; // Tampilkan loading
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/calculate_ml', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const mlResults = await response.json();
+
+    if (mlResults.error) {
+      alert(`Error: ${mlResults.error}`);
+      return;
+    }
+
+    // Update grafik dengan hasil prediksi
+    chart.updateSeries([
+      { name: "Historical Data", data: formattedData },
+      { name: "Predicted Data (ML)", data: mlResults },
+    ]);
+  } catch (error) {
+    console.error("Error:", error);
+    alert("An error occurred while performing ML analysis.");
+  } finally {
+    loadingElement.style.display = 'none'; // Sembunyikan loading
+  }
+});
+
+// document.addEventListener("DOMContentLoaded", function () {
+//   const wellDropdown = document.getElementById("well-dropdown");
+//
+//   // Fetch well data from Flask backend
+//   fetch('http://127.0.0.1:5000/get_wells')
+//     .then(response => {
+//       if (!response.ok) {
+//         throw new Error("Failed to fetch well data");
+//       }
+//       return response.json();
+//     })
+//     .then(data => {
+//       // Clear existing options
+//       wellDropdown.innerHTML = '<option value="">Select...</option>';
+//
+//       // Populate dropdown with wells
+//       if (data.wells) {
+//         data.wells.forEach(well => {
+//           const option = document.createElement("option");
+//           option.value = well;
+//           option.textContent = well;
+//           wellDropdown.appendChild(option);
+//         });
+//       }
+//     })
+//     .catch(error => {
+//       console.error("Error loading wells:", error);
+//       wellDropdown.innerHTML = '<option value="">Failed to load</option>';
+//     });
+// });
+
+
 
 // Load Chart on Page Load
 loadChart();

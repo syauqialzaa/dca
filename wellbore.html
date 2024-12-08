@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wellbore Diagram Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      display: flex;
+      flex-direction: row; /* Membuat layout horizontal */
+      justify-content: space-between;
+    }
+    .form-container, .diagram-container {
+      width: 48%; /* Membagi layar menjadi dua bagian */
+    }
+    .form-container {
+      max-width: 400px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+    }
+    input, button {
+      padding: 8px;
+      width: 100%;
+      margin-top: 5px;
+    }
+    .diagram-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ddd;
+      padding: 20px;
+      min-height: 600px; /* Tinggi minimum untuk area diagram */
+    }
+    .hidden {
+      display: none;
+    }
+    #diagramImage {
+      max-width: 100%; /* Membatasi ukuran gambar */
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- Form Input -->
+  <div class="form-container">
+    <h1>Wellbore Diagram Generator</h1>
+    <form id="parameterForm">
+      <h3>Default Parameters</h3>
+      <div class="form-group">
+        <label for="surface_casing_depth">Surface Casing Depth (ft)</label>
+        <input type="number" id="surface_casing_depth" name="surface_casing_depth" value="180" required>
+      </div>
+      <div class="form-group">
+        <label for="production_casing_depth">Production Casing Depth (ft)</label>
+        <input type="number" id="production_casing_depth" name="production_casing_depth" value="448" required>
+      </div>
+      <div class="form-group">
+        <label for="production_liner_depth">Production Liner Depth (ft)</label>
+        <input type="number" id="production_liner_depth" name="production_liner_depth" value="708" required>
+      </div>
+      <div class="form-group">
+        <label for="tubing_depth">Tubing Depth (ft)</label>
+        <input type="number" id="tubing_depth" name="tubing_depth" value="690" required>
+      </div>
+      <div class="form-group">
+        <label for="tubing_pump_depth">Tubing Pump Depth (ft)</label>
+        <input type="number" id="tubing_pump_depth" name="tubing_pump_depth" value="689" required>
+      </div>
+      <h3>Geological Parameters</h3>
+<!--      <div class="form-group">-->
+<!--        <label for="gamma_ray">Gamma Ray (GR)</label>-->
+<!--        <input type="number" id="gamma_ray" name="gamma_ray" value="100" required>-->
+<!--      </div>-->
+<!--      <div class="form-group">-->
+<!--        <label for="resistivity">Resistivity (ohm.m)</label>-->
+<!--        <input type="number" id="resistivity" name="resistivity" value="10" required>-->
+<!--      </div>-->
+<!--      <div class="form-group">-->
+<!--        <label for="pressure">Formation Pressure (psi)</label>-->
+<!--        <input type="number" id="pressure" name="pressure" value="5000" required>-->
+<!--      </div>-->
+<!--      <div class="form-group">-->
+<!--        <label for="temperature">Formation Temperature (°F)</label>-->
+<!--        <input type="number" id="temperature" name="temperature" value="200" required>-->
+<!--      </div>-->
+
+      <h3>Additional Components</h3>
+      <div id="dynamicParameters"></div>
+      <button type="button" onclick="addParameter()">Add Casing</button>
+      <br><br>
+      <button type="button" onclick="generateDiagram()">Generate Wellbore Diagram</button>
+    </form>
+  </div>
+
+  <!-- Diagram Output -->
+  <div class="diagram-container" id="diagram">
+    <h2>Generated Diagram:</h2>
+    <img id="diagramImage" src="" alt="Wellbore Diagram">
+  </div>
+</div>
+
+<script>
+  let parameterCount = 0;
+
+  function addParameter() {
+    parameterCount++;
+    const container = document.getElementById("dynamicParameters");
+    const html = `
+                <div class="form-group">
+                    <label for="casing_depth_top_${parameterCount}">Casing ${parameterCount} Top Depth (ft)</label>
+                    <input type="number" id="casing_depth_top_${parameterCount}" name="casing_depth_top_${parameterCount}" required>
+                    <label for="casing_depth_bottom_${parameterCount}">Casing ${parameterCount} Bottom Depth (ft)</label>
+                    <input type="number" id="casing_depth_bottom_${parameterCount}" name="casing_depth_bottom_${parameterCount}" required>
+                    <label for="casing_color_${parameterCount}">Casing ${parameterCount} Color</label>
+                    <input type="text" id="casing_color_${parameterCount}" name="casing_color_${parameterCount}" value="blue" required>
+                </div>
+            `;
+    container.insertAdjacentHTML("beforeend", html);
+  }
+
+  async function generateDiagram() {
+    const formData = new FormData(document.getElementById('parameterForm'));
+    const response = await fetch('http://127.0.0.1:5000/generate', {
+      method: 'POST',
+      body: formData
+    });
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      document.getElementById('diagramImage').src = url;
+      document.getElementById('diagram').classList.remove('hidden');
+    } else {
+      alert('Failed to generate diagram.');
+    }
+  }
+</script>
+</body>
+</html>

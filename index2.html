@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decline Curve Analysis</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+<h1>Decline Curve Analysis</h1>
+<label for="wellDropdown">Select Well:</label>
+<select id="wellDropdown">
+  <option value="">All Wells</option>
+</select>
+<label for="startDate">Start Date:</label>
+<input type="date" id="startDate">
+<label for="endDate">End Date:</label>
+<input type="date" id="endDate">
+<button id="filterButton">Filter</button>
+<button id="analyzeDCA" class="btn btn-success">Analyze DCA</button>
+
+
+<div id="chart"></div>
+<div id="points">
+  <p><strong>Start Point:</strong> <span id="startPoint"></span></p>
+  <p><strong>Mid Point:</strong> <span id="midPoint"></span></p>
+  <p><strong>End Point:</strong> <span id="endPoint"></span></p>
+</div>
+
+<div id="loading" style="display: none;">Loading...</div>
+<div id="noData" style="display: none; text-align: center; color: red;">No Data Found</div>
+<script src="app2.js"></script>
+</body>
+</html>
