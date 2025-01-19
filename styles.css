@@ -38,6 +38,14 @@ div {
   margin-right: 10px;
 }
 
+/* Tambahkan margin untuk jarak antar elemen */
+label, select, input, button {
+  margin: 0 10px;
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 5px;
+}
+
 /* Dropdown select styling */
 select {
   padding: 10px 15px;
@@ -73,6 +81,14 @@ input[type="date"] {
 
 input[type="date"]:focus {
   border-color: #007bff;
+}
+
+/* Gaya khusus untuk input ELR */
+input#elr {
+  width: 60px; /* Atur lebar agar proporsional */
+  text-align: center; /* Letakkan teks di tengah */
+  border: 1px solid #ccc; /* Border yang lembut */
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Style for buttons */
@@ -128,4 +144,65 @@ button:active {
   color: red;
   text-align: center;
 }
+
+/* Container for both sections */
+.container {
+  display: flex;
+  justify-content: flex-start; /* Align items to the start */
+  align-items: flex-start; /* Align sections at the top */
+  gap: 10px; /* Reduce gap between sections */
+  margin-bottom: 20px; /* Add spacing below the container */
+  flex-wrap: wrap; /* Allow wrapping for smaller screens */
+}
+
+/* Styling for filter and DCA sections */
+.filter-section, #dca-options {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* Add consistent spacing between items */
+}
+
+/* Adjust section widths to align properly */
+.filter-section {
+  flex: 1; /* Make the filter section take available space */
+}
+
+#dca-options {
+  flex: 0 0 auto; /* Prevent DCA options from stretching */
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Add spacing between buttons */
+}
+
+/* Styling for individual groups */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-right: 10px; /* Add some margin between groups */
+}
+
+#dcaSection {
+  background-color: lightgrey;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px; /* Increase spacing for stacked layout */
+  }
+
+  .filter-section, #dca-options {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+
 

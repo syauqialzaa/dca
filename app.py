@@ -15,6 +15,7 @@ import numpy as np
 from dca_model import analyze_dca
 import logging
 from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
@@ -22,47 +23,112 @@ app = Flask(__name__)
 # CORS(app, resources={r"/generate": {"origins": "http://localhost:63342"}})
 CORS(app)
 
-# Load trained models
-depth_model = joblib.load('depth_model.pkl')
-material_model = joblib.load('material_model.pkl')
-
-# Load historical data from JSON file
-with open('historical_actual_preprocessed.json') as f:
-    raw_data = json.load(f)
-
-# Load the trained model
-with open('final_model.pkl', 'rb') as file:
-    best_model = pickle.load(file)
-
-# Format data for chart (Date -> timestamp, Production -> y)
-historical_data = [{"x": entry["Date"], "y": entry["Production"]} for entry in raw_data]
+# # Load trained models
+# depth_model = joblib.load('depth_model.pkl')
+# material_model = joblib.load('material_model.pkl')
+#
+# # Load historical data from JSON file
+# with open('historical_actual_preprocessed.json') as f:
+#     raw_data = json.load(f)
+#
+# # Load the trained model
+# with open('final_model.pkl', 'rb') as file:
+#     best_model = pickle.load(file)
+#
+# # Format data for chart (Date -> timestamp, Production -> y)
+# historical_data = [{"x": entry["Date"], "y": entry["Production"]} for entry in raw_data]
 
 # Load and preprocess dataset
-file_path = 'Dataset DCA.xlsx'
+file_path = 'DCA1.xlsx'
+
+#updateed 28/12/2024
+# Define DCA models
+def exponential_decline(t, qi, b):
+    return qi * np.exp(-b * t)
+
+def harmonic_decline(t, qi, b):
+    return qi / (1 + b * t)
+
+def hyperbolic_decline(t, qi, b, n):
+    return qi * (1 + b * t) ** (-1 / n)
+
+# Load the adjusted dataset
+adjusted_data = pd.read_excel(file_path)
+adjusted_data['TEST_DATE'] = pd.to_datetime(adjusted_data['TEST_DATE'], format='%d/%m/%Y')
+
+# Handle outliers
+def handle_outliers(data, column):
+    """Remove outliers using the IQR method."""
+    Q1 = data[column].quantile(0.25)
+    Q3 = data[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    return data[(data[column] >= lower_bound) & (data[column] <= upper_bound)]
+
+# Clean TSTOIL and TSTFLUID columns
+adjusted_data = handle_outliers(adjusted_data, 'TSTOIL')
+adjusted_data = handle_outliers(adjusted_data, 'TSTFLUID')
+
+# Determine starting points for DCA based on data after the last JOB_CODE
+grouped_wells_dca = adjusted_data.groupby('STRING_CODE')
+dca_start_points_after_jobcode = {}
+
+for well, data in grouped_wells_dca:
+    data_sorted = data.sort_values(by='TEST_DATE')
+    last_jobcode_date = data_sorted[data_sorted['JOB_CODE'].notnull()]['TEST_DATE'].max()
+    data_after_jobcode = data_sorted[data_sorted['TEST_DATE'] > last_jobcode_date]
+
+    if not data_after_jobcode.empty:
+        oil_diff = data_after_jobcode['TSTOIL'].diff().fillna(0)
+        stable_points = data_after_jobcode[oil_diff <= 0]
+        if not stable_points.empty:
+            dca_start_points_after_jobcode[well] = stable_points.iloc[0]
+
+# Adjust fitting with better initial guesses and bounds
+exp_initial = [60, 0.01]  # [qi, b]
+harm_initial = [60, 0.01]  # [qi, b]
+hyper_initial = [60, 0.01, 1.0]  # [qi, b, n]
+hyper_bounds = ([0, 0, 0.5], [np.inf, 0.1, 2])
+
+def validate_dca_data(well_data):
+    if len(well_data) < 2:
+        return "Data terlalu sedikit untuk analisis DCA."
+    if (well_data['TSTOIL'] <= 0).any():
+        return "Terdapat nilai produksi minyak (TSTOIL) yang nol atau negatif."
+#     if well_data['TSTOIL'].diff().fillna(0).gt(0).any():
+#         return "Produksi minyak mengalami peningkatan pada beberapa titik, tidak sesuai untuk DCA."
+    return None
+
+def predict_to_economic_limit(model, params, economic_limit):
+    t = 0
+    while model(t, *params) > economic_limit:
+        t += 1
+    return t
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-def load_data():
-    data = pd.read_excel(file_path)
-    data['TEST_DATE'] = pd.to_datetime(data['TEST_DATE'])
-    data_sorted = data.sort_values(by="TEST_DATE")
-    data_sorted = data_sorted.groupby("TEST_DATE")["TSTOIL"].sum().reset_index()
-    data_sorted.columns = ['Date', 'Production']
-    data_sorted['Production'] = data_sorted['Production'].interpolate(method='linear')
-
-    # Remove outliers using IQR
-    Q1 = data_sorted['Production'].quantile(0.25)
-    Q3 = data_sorted['Production'].quantile(0.75)
-    IQR = Q3 - Q1
-    data_sorted = data_sorted[
-        ~((data_sorted['Production'] < (Q1 - 1.5 * IQR)) |
-          (data_sorted['Production'] > (Q3 + 1.5 * IQR)))
-    ]
-    return data_sorted
-
-data_sorted = load_data()
+# def load_data():
+#     data = pd.read_excel(file_path)
+#     data['TEST_DATE'] = pd.to_datetime(data['TEST_DATE'])
+#     data_sorted = data.sort_values(by="TEST_DATE")
+#     data_sorted = data_sorted.groupby("TEST_DATE")["TSTOIL"].sum().reset_index()
+#     data_sorted.columns = ['Date', 'Production']
+#     data_sorted['Production'] = data_sorted['Production'].interpolate(method='linear')
+#
+#     # Remove outliers using IQR
+#     Q1 = data_sorted['Production'].quantile(0.25)
+#     Q3 = data_sorted['Production'].quantile(0.75)
+#     IQR = Q3 - Q1
+#     data_sorted = data_sorted[
+#         ~((data_sorted['Production'] < (Q1 - 1.5 * IQR)) |
+#           (data_sorted['Production'] > (Q3 + 1.5 * IQR)))
+#     ]
+#     return data_sorted
+#
+# data_sorted = load_data()
 
 @app.route('/get_data', methods=['GET'])
 def get_data():
@@ -108,9 +174,9 @@ def get_history():
         data = data[data['TEST_DATE'] <= end_date]
 
     # Default to last 12 months if no filters provided
-    if not selected_well and not start_date and not end_date:
+    if not start_date and not end_date:
         max_date = data['TEST_DATE'].max()
-        min_date = max_date - pd.DateOffset(months=12)
+        min_date = max_date - pd.DateOffset(months=24)
         data = data[(data['TEST_DATE'] >= min_date) & (data['TEST_DATE'] <= max_date)]
 
     # Sort data
@@ -237,7 +303,7 @@ def calculate_dca3():
             return qi / (1 + b * d * t) ** (1 / b)
 
         # Calculate DCA predictions
-        t_fit = np.linspace(0, t[-1] + 365, len(t) + 30)
+        t_fit = np.linspace(0, t[-1] + 120, len(t) + 30)
         exp_fit_opt = exponential_decline(t_fit, q[0], 0.001)
         harm_fit_opt = harmonic_decline(t_fit, q[0], 0.002)
         hyper_fit_opt = hyperbolic_decline(t_fit, q[0], 1.0, 0.001)
@@ -367,160 +433,144 @@ def calculate_ml():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/calculate_dca2', methods=['POST'])
-def calculate_dca_endpoint():
+# @app.route('/calculate_dca2', methods=['POST'])
+# def calculate_dca_endpoint():
+#     try:
+#         data = request.get_json()
+#         well = data['well']
+#         start_date = data['start_date']
+#         end_date = data['end_date']
+#
+#         # Load the dataset and filter based on well and date
+#         filtered_data = load_filtered_data(well, start_date, end_date)
+#
+#         # Calculate DCA
+#         results = analyze_dca(filtered_data)
+#
+#         # Convert NumPy arrays to lists for JSON serialization
+#         results['exp_fit'] = results['exp_fit'].tolist()
+#         results['harm_fit'] = results['harm_fit'].tolist()
+#         results['hyper_fit'] = results['hyper_fit'].tolist()
+#
+#         # Convert dates to strings
+#         results['start_date'] = str(results['start_date'])
+#         results['mid_date'] = str(results['mid_date'])
+#         results['end_date'] = str(results['end_date'])
+#
+#         return jsonify(results), 200
+#
+#     except Exception as e:
+#         print(e)
+#         return jsonify({'error': 'An unexpected error occurred. Please try again.'}), 500
+
+
+@app.route('/automatic_dca', methods=['POST'])
+def automatic_dca_analysis():
+    data = request.get_json()
+    well = data.get('well')
+
+    if well not in adjusted_data['STRING_CODE'].unique():
+        return jsonify({"error": f"Well {well} not found in dataset."}), 404
+
+    if well not in dca_start_points_after_jobcode:
+        return jsonify({"error": f"No valid starting points for well {well}."}), 404
+
+    start_point = dca_start_points_after_jobcode[well]
+    well_data = adjusted_data[
+        (adjusted_data['STRING_CODE'] == well) &
+        (adjusted_data['TEST_DATE'] >= start_point['TEST_DATE'])
+    ].sort_values(by='TEST_DATE')
+
+    # Filter hanya data ketika ada perubahan produksi
+    well_data = well_data[well_data['TSTOIL'].diff().fillna(0) != 0]
+
+    validation_error = validate_dca_data(well_data)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
+
     try:
-        data = request.get_json()
-        well = data['well']
-        start_date = data['start_date']
-        end_date = data['end_date']
+        t = (well_data['TEST_DATE'] - well_data['TEST_DATE'].min()).dt.days
+        q = well_data['TSTOIL']
 
-        # Load the dataset and filter based on well and date
-        filtered_data = load_filtered_data(well, start_date, end_date)
+        exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
+        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
+        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
 
-        # Calculate DCA
-        results = analyze_dca(filtered_data)
+        # Data historis (hanya data perubahan produksi)
+        actual_data = [
+            {"date": date.strftime('%Y-%m-%d'), "value": value, "fluid": fluid}
+            for date, value, fluid in zip(well_data['TEST_DATE'], well_data['TSTOIL'], well_data['TSTFLUID'])
+        ]
 
-        # Convert NumPy arrays to lists for JSON serialization
-        results['exp_fit'] = results['exp_fit'].tolist()
-        results['harm_fit'] = results['harm_fit'].tolist()
-        results['hyper_fit'] = results['hyper_fit'].tolist()
+        return jsonify({
+            "Exponential": exp_params.tolist(),
+            "Harmonic": harm_params.tolist(),
+            "Hyperbolic": hyper_params.tolist(),
+            "StartDate": well_data['TEST_DATE'].min().strftime('%Y-%m-%d'),
+            "EndDate": well_data['TEST_DATE'].max().strftime('%Y-%m-%d'),
+            "ActualData": actual_data
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        # Convert dates to strings
-        results['start_date'] = str(results['start_date'])
-        results['mid_date'] = str(results['mid_date'])
-        results['end_date'] = str(results['end_date'])
 
-        return jsonify(results), 200
+@app.route('/predict_production', methods=['POST'])
+def predict_production():
+    try:
+        request_data = request.get_json()
+        well = request_data.get('well')
+        start_date = request_data.get('start_date', '2024-07-09')
+        selected_data = request_data.get('selected_data')  # Data yang dipilih
+        economic_limit = request_data.get('elr', 5)
+
+        # Debugging
+        if not well:
+            return jsonify({"error": "Well parameter is missing"}), 400
+        if not selected_data:
+            print("Selected data is empty")
+        print(f"Start date: {start_date}, Economic limit: {economic_limit}")
+
+        # Validasi selected_data
+        if selected_data:
+            well_data = pd.DataFrame(selected_data)
+            well_data['Date'] = pd.to_datetime(well_data['Date'])
+            well_data = well_data.sort_values(by='Date')
+        else:
+            # Proses data dari start_date jika selected_data tidak ada
+            well_data = adjusted_data[(adjusted_data['STRING_CODE'] == well) & (adjusted_data['TEST_DATE'] >= start_date)]
+            if well_data.empty:
+                return jsonify({"error": f"No data available for well {well} starting from {start_date}."}), 404
+
+        # Prediksi DCA
+        t = (well_data['Date'] - well_data['Date'].min()).dt.days
+        q = well_data['Production']
+
+        exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
+        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
+        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
+
+        # Prediksi ke depan
+        predictions = {"Exponential": [], "Harmonic": [], "Hyperbolic": []}
+        future_days = np.arange(0, predict_to_economic_limit(exponential_decline, exp_params, economic_limit))
+
+        for day in future_days:
+            predictions["Exponential"].append({
+                "date": (well_data['Date'].min() + pd.Timedelta(days=day)).strftime('%Y-%m-%d'),
+                "value": exponential_decline(day, *exp_params)
+            })
+            predictions["Harmonic"].append({
+                "date": (well_data['Date'].min() + pd.Timedelta(days=day)).strftime('%Y-%m-%d'),
+                "value": harmonic_decline(day, *harm_params)
+            })
+            predictions["Hyperbolic"].append({
+                "date": (well_data['Date'].min() + pd.Timedelta(days=day)).strftime('%Y-%m-%d'),
+                "value": hyperbolic_decline(day, *hyper_params)
+            })
+
+        return jsonify({"Predictions": predictions})
 
     except Exception as e:
-        print(e)
-        return jsonify({'error': 'An unexpected error occurred. Please try again.'}), 500
-
-
-def generate_wellbore_diagram(parameters):
-    fig, ax = plt.subplots(figsize=(4, 8))  # Perbesar width untuk memberi ruang pada legenda
-
-    max_depth = 0  # Track the maximum depth for scaling
-
-    for param in parameters:
-        if param["type"] == "casing":
-            ax.add_patch(patches.Rectangle(
-                (param["x"], param["top_depth"]),
-                param["width"],
-                param["bottom_depth"] - param["top_depth"],
-                hatch=param.get("hatch", ""),
-                facecolor=param.get("color", "none"),
-                edgecolor="blue",
-                label=param["label"]
-            ))
-        elif param["type"] == "completion":
-            ax.plot(param["x"], param["depth"], marker="o", markersize=8, color=param.get("color", "orange"), label=param["label"])
-
-        # Update max depth
-        max_depth = max(max_depth, param["bottom_depth"] if "bottom_depth" in param else param["depth"])
-
-    # Add depth labels on the left
-    step = 100  # Interval for depth labels
-    for depth in range(0, int(max_depth) + step, step):
-        ax.text(0.4, depth, f"{depth} ft", fontsize=8, verticalalignment="center", horizontalalignment="right")
-
-    # Styling the plot
-    ax.set_xlim(0.2, 4.5)  # Adjust x-axis to leave space for labels and legend
-    ax.set_ylim(0, max_depth + 50)
-    ax.invert_yaxis()  # Reverse the depth axis for wellbore style
-    ax.axis("off")
-
-    # Add legend to the right
-    ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5), fontsize=8, frameon=False)
-
-    # Save the figure to a BytesIO buffer
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')  # Ensure the diagram is properly cropped
-    buf.seek(0)
-    plt.close(fig)
-    return buf
-
-
-
-@app.route('/generate', methods=['POST'])
-def generate():
-    parameters = []
-
-    # Integrate predicted casing/liner based on geologic input
-    if 'gamma_ray' in request.form:
-        input_data = {
-            'Gamma Ray (GR)': float(request.form['gamma_ray']),
-            'Resistivity (ohm.m)': float(request.form['resistivity']),
-            'Formation Pressure (psi)': float(request.form['pressure']),
-            'Formation Temperature (°F)': float(request.form['temperature'])
-        }
-        input_df = pd.DataFrame([input_data])  # Create input DataFrame
-        predicted_depth = depth_model.predict(input_df)[0]
-        predicted_material = material_model.predict(input_df)[0]
-
-        # Add predicted casing to parameters FIRST
-        parameters.append({
-            "type": "casing",
-            "x": 1.25,
-            "top_depth": 0,
-            "bottom_depth": int(predicted_depth),
-            "width": 1.5,
-            "color": "cyan",  # Highlight predicted casing with a distinct color
-            "label": f"Predicted Casing ({predicted_material})"
-        })
-
-    # Add default parameters AFTER predicted casing
-    parameters.append({
-        "type": "casing",
-        "x": 0.5,
-        "top_depth": 0,
-        "bottom_depth": int(request.form['surface_casing_depth']),
-        "width": 3,
-        "hatch": "o",
-        "color": "none",
-        "label": "Surface Casing"
-    })
-    parameters.append({
-        "type": "casing",
-        "x": 1,
-        "top_depth": int(request.form['surface_casing_depth']),
-        "bottom_depth": int(request.form['production_casing_depth']),
-        "width": 2,
-        "hatch": "..",
-        "color": "none",
-        "label": "Production Casing"
-    })
-    parameters.append({
-        "type": "casing",
-        "x": 1.5,
-        "top_depth": int(request.form['production_casing_depth']),
-        "bottom_depth": int(request.form['production_liner_depth']),
-        "width": 1,
-        "color": "lightgreen",
-        "label": "Production Liner"
-    })
-    parameters.append({
-        "type": "casing",
-        "x": 1.75,
-        "top_depth": 0,
-        "bottom_depth": int(request.form['tubing_depth']),
-        "width": 0.5,
-        "color": "red",
-        "label": "Tubing"
-    })
-    parameters.append({
-        "type": "completion",
-        "x": 2,
-        "depth": int(request.form['tubing_pump_depth']),
-        "color": "orange",
-        "label": "Tubing Pump"
-    })
-
-    # Generate diagram
-    img = generate_wellbore_diagram(parameters)
-    return send_file(img, mimetype='image/png')
-
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
