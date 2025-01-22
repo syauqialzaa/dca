@@ -4,8 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const chartElement = document.getElementById('chart');
   const loadingElement = document.getElementById('loading');
   const noDataElement = document.getElementById('noData');
-
-
+  let productionSeriesTemp = {};
 
   // Initialize chart with updated configuration
   let chart = new ApexCharts(chartElement, {
@@ -15,6 +14,35 @@ document.addEventListener('DOMContentLoaded', () => {
       zoom: {
         // enabled: true, // Enable zooming for better exploration
       },
+      events: {
+        markerClick: function(event, chartContext, { seriesIndex, dataPointIndex }) {
+
+          const getLocalStorageProductionSeries = () => {
+            const localStorageProductionSeries = localStorage.getItem('productionSeries');
+            return localStorageProductionSeries ? JSON.parse(localStorageProductionSeries) : {};
+          };
+
+          const productionSeries = getLocalStorageProductionSeries();
+          const dataPoint = productionSeries.data[dataPointIndex];
+
+          if (dataPoint) {
+            const groupDataPredictions = {
+              well: wellDropdown.value,
+              selected_data: {
+                Date: dataPoint.x,
+                Production: dataPoint.y
+              },
+              elr: 10
+            };
+
+            console.log(groupDataPredictions);
+            console.log('Matched Data:', dataPoint);
+          } else {
+            console.warning('No matching data found for the selected point.');
+          }
+
+        }
+      }
     },
     series: [], // Series data will be dynamically updated
     xaxis: {
@@ -71,31 +99,28 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
     events: {
-      selection: function (chartContext, { xaxis }) {
-        // Tangkap range waktu yang dipilih (start dan end date)
-        const startDate = new Date(xaxis.min).toISOString().split('T')[0];
-        const endDate = new Date(xaxis.max).toISOString().split('T')[0];
-        // Filter data berdasarkan range waktu yang dipilih
-        const selectedData = chartContext.opts.series[0].data.filter(point => {
-          const date = new Date(point.x);
-          return date >= new Date(startDate) && date <= new Date(endDate);
-        });
+      // selection: function (event, {xaxis}, config) {
+      //   alert(1)
+      //   console.log("Selection", event, xaxis, config);
+      //   const startDate = new Date(xaxis.min).toISOString().split('T')[0];
+      //   const endDate = new Date(xaxis.max).toISOString().split('T')[0];
+      //   const selectedData = config.series[0].data.filter(point => {
+      //     const date = new Date(point.x);
+      //     return date >= new Date(startDate) && date <= new Date(endDate);
+      //   });
 
-        // console.log("Selected Data:", selectedData); // Debugging untuk melihat data yang dipilih
+      //   console.log("Selected Data:", selectedData); // Debugging untuk melihat data yang dipilih
 
-        // Simpan data yang dipilih dalam variable global (opsional)
-        window.selectedData = selectedData;
+      //   window.selectedData = selectedData;
 
-        // Tampilkan alert atau lanjutkan proses
-        if (selectedData.length === 0) {
-          alert("No data selected in the given range.");
-        } else {
-          alert(`Selected ${selectedData.length} data points.`);
-        }
+      //   if (selectedData.length === 0) {
+      //     alert("No data selected in the given range.");
+      //   } else {
+      //     alert(`Selected ${selectedData.length} data points.`);
+      //   }
 
-        // Trigger backend call with selected data
-        fetchPredictionWithSelectedData(selectedData, startDate, endDate);
-      }
+      //   fetchPredictionWithSelectedData(selectedData, startDate, endDate);
+      // }
     },
     markers: {
       size: [4, 5], // Customize marker size for better visualization
@@ -254,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
       })
       .then((data) => {
-        console.log("Data received from backend:", data); // Debugging data received
+        // console.log("Data received from backend:", data); // Debugging data received
         hideLoading(); // Hide loading spinner
 
         if (!data || data.length === 0) {
@@ -275,6 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
           })),
           yAxisIndex: 0,
         };
+
+        localStorage.setItem('productionSeries', JSON.stringify(localStorageProductionSeries));
 
         const fluidSeries = {
           name: 'Fluid',
@@ -298,8 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }))
         }
 
-        console.log("Production series:", productionSeries); // Debugging series data
-        console.log("Fluid series:", fluidSeries); // Debugging series data
+        // console.log("Production series:", productionSeries); // Debugging series data
+        // console.log("Fluid series:", fluidSeries); // Debugging series data
 
         // Update chart series
         chart.updateSeries([productionSeries, fluidSeries, jobCodeSeries])
@@ -310,7 +337,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error updating chart series:", error);
           });
 
-        console.log("Chart Options after update:", chart.opts);
+        // console.log(productionSeries);
+        // console.log("Chart Options after update:", chart.opts);
       })
       .catch((error) => {
         hideLoading(); // Hide loading spinner even on error
@@ -594,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (selectedData.length === 0) {
+      console.log(selectedData)
       // Jika tidak ada data yang dipilih, ambil dua data terakhir dari grafik
       const allData = chart.opts.series[0]?.data || [];
       console.log("Chart Options:", chart.opts);
@@ -616,3 +645,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 });
+
