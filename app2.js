@@ -555,22 +555,30 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  const fetchPredictionWithSelectedData = (selectedData, startDate, endDate) => {
+  const fetchPredictionWithSelectedData = (selectedData, elr) => {
     showLoading();
     const selectedWell = document.getElementById('wellDropdown').value;
 
     if (!selectedWell) {
       alert("Please select a well.");
+      hideLoading();
       return;
     }
+
+    if (!selectedData || selectedData.length === 0) {
+      alert("No selected data available for prediction.");
+      hideLoading();
+      return;
+    }
+
+    // Kirim data ke backend
     fetch('http://127.0.0.1:5000/predict_production', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        well: selectedWell, // Kirimkan nama well
-        start_date: startDate, // Kirimkan start date
-        end_date: endDate, // Kirimkan end date
-        selected_data: selectedData // Kirimkan data yang dipilih
+        well: selectedWell,
+        economic_limit: elr, // Kirim ELR
+        selected_data: selectedData.length === 1 ? selectedData[0] : null // Kirim satu data saja jika dipilih
       })
     })
       .then(response => response.json())
@@ -583,15 +591,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Update chart dengan prediksi baru
-        const exponentialData = data.Predictions.Exponential.map(point => ({
+        const exponentialData = data.ExponentialPrediction.map(point => ({
           x: new Date(point.date),
           y: point.value
         }));
-        const harmonicData = data.Predictions.Harmonic.map(point => ({
+        const harmonicData = data.HarmonicPrediction.map(point => ({
           x: new Date(point.date),
           y: point.value
         }));
-        const hyperbolicData = data.Predictions.Hyperbolic.map(point => ({
+        const hyperbolicData = data.HyperbolicPrediction.map(point => ({
           x: new Date(point.date),
           y: point.value
         }));
@@ -609,7 +617,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('An unexpected error occurred. Please try again.');
       });
   };
-
 
 // Event listener untuk tombol Predict DCA
   const predictDCAButton = document.getElementById('predictDCA');
@@ -646,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Selected Data for Prediction:", selectedData);
 
     // Panggil fungsi fetchPredictionWithSelectedData
-    fetchPredictionWithSelectedData(selectedData, selectedWell, elr);
+    fetchPredictionWithSelectedData(selectedData, elr);
   });
 
 

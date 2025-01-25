@@ -38,27 +38,13 @@ CORS(app)
 # # Format data for chart (Date -> timestamp, Production -> y)
 # historical_data = [{"x": entry["Date"], "y": entry["Production"]} for entry in raw_data]
 
-# Load and preprocess dataset
+# Load dataset
 file_path = 'DCA1.xlsx'
-
-#updateed 28/12/2024
-# Define DCA models
-def exponential_decline(t, qi, b):
-    return qi * np.exp(-b * t)
-
-def harmonic_decline(t, qi, b):
-    return qi / (1 + b * t)
-
-def hyperbolic_decline(t, qi, b, n):
-    return qi * (1 + b * t) ** (-1 / n)
-
-# Load the adjusted dataset
 adjusted_data = pd.read_excel(file_path)
 adjusted_data['TEST_DATE'] = pd.to_datetime(adjusted_data['TEST_DATE'], format='%d/%m/%Y')
 
 # Handle outliers
 def handle_outliers(data, column):
-    """Remove outliers using the IQR method."""
     Q1 = data[column].quantile(0.25)
     Q3 = data[column].quantile(0.75)
     IQR = Q3 - Q1
@@ -69,6 +55,19 @@ def handle_outliers(data, column):
 # Clean TSTOIL and TSTFLUID columns
 adjusted_data = handle_outliers(adjusted_data, 'TSTOIL')
 adjusted_data = handle_outliers(adjusted_data, 'TSTFLUID')
+
+# Define DCA models
+def exponential_decline(t, qi, b):
+    return qi * np.exp(-b * t)
+
+def harmonic_decline(t, qi, b):
+    return qi / (1 + b * t)
+
+def hyperbolic_decline(t, qi, b, n):
+    return qi * (1 + b * t) ** (-1 / n)
+
+# Initialize global variable to store the latest DCA result
+latest_dca_result = None
 
 # Determine starting points for DCA based on data after the last JOB_CODE
 grouped_wells_dca = adjusted_data.groupby('STRING_CODE')
@@ -81,30 +80,18 @@ for well, data in grouped_wells_dca:
 
     if not data_after_jobcode.empty:
         oil_diff = data_after_jobcode['TSTOIL'].diff().fillna(0)
-        stable_points = data_after_jobcode[oil_diff <= 0]
+        fluid_diff = data_after_jobcode['TSTFLUID'].diff().fillna(0)
+        stable_points = data_after_jobcode[(oil_diff <= 0) & (fluid_diff <= 0)]
         if not stable_points.empty:
             dca_start_points_after_jobcode[well] = stable_points.iloc[0]
 
-# Adjust fitting with better initial guesses and bounds
-exp_initial = [60, 0.01]  # [qi, b]
-harm_initial = [60, 0.01]  # [qi, b]
-hyper_initial = [60, 0.01, 1.0]  # [qi, b, n]
-hyper_bounds = ([0, 0, 0.5], [np.inf, 0.1, 2])
-
+# Validate DCA data
 def validate_dca_data(well_data):
     if len(well_data) < 2:
         return "Data terlalu sedikit untuk analisis DCA."
     if (well_data['TSTOIL'] <= 0).any():
         return "Terdapat nilai produksi minyak (TSTOIL) yang nol atau negatif."
-#     if well_data['TSTOIL'].diff().fillna(0).gt(0).any():
-#         return "Produksi minyak mengalami peningkatan pada beberapa titik, tidak sesuai untuk DCA."
     return None
-
-def predict_to_economic_limit(model, params, economic_limit):
-    t = 0
-    while model(t, *params) > economic_limit:
-        t += 1
-    return t
 
 @app.route('/')
 def index():
@@ -466,112 +453,169 @@ def calculate_ml():
 
 @app.route('/automatic_dca', methods=['POST'])
 def automatic_dca_analysis():
-    data = request.get_json()
-    well = data.get('well')
-
-    if well not in adjusted_data['STRING_CODE'].unique():
-        return jsonify({"error": f"Well {well} not found in dataset."}), 404
-
-    if well not in dca_start_points_after_jobcode:
-        return jsonify({"error": f"No valid starting points for well {well}."}), 404
-
-    start_point = dca_start_points_after_jobcode[well]
-    well_data = adjusted_data[
-        (adjusted_data['STRING_CODE'] == well) &
-        (adjusted_data['TEST_DATE'] >= start_point['TEST_DATE'])
-    ].sort_values(by='TEST_DATE')
-
-    # Filter hanya data ketika ada perubahan produksi
-    well_data = well_data[well_data['TSTOIL'].diff().fillna(0) != 0]
-
-    validation_error = validate_dca_data(well_data)
-    if validation_error:
-        return jsonify({"error": validation_error}), 400
+    global latest_dca_result
 
     try:
-        t = (well_data['TEST_DATE'] - well_data['TEST_DATE'].min()).dt.days
-        q = well_data['TSTOIL']
+        data = request.get_json()
+        well = data.get('well')
+        selected_data = data.get('selected_data')
+        custom_filter = data.get('custom_filter')
 
-        exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
-        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
-        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
-
-        # Data historis (hanya data perubahan produksi)
-        actual_data = [
-            {"date": date.strftime('%Y-%m-%d'), "value": value, "fluid": fluid}
-            for date, value, fluid in zip(well_data['TEST_DATE'], well_data['TSTOIL'], well_data['TSTFLUID'])
+        ignored_job_codes = [
+            'PMP14', 'PMP29', 'PMP43', 'PMP45', 'PMP01', 'PMP02', 'PMP03',
+            'PMP04', 'PMP05', 'PMP31', 'PMP32', 'PMP33', 'PMP34', 'PMP35',
+            'PMP36', 'PMP37', 'PMP38', 'PMP39'
         ]
+
+        if selected_data:
+            well_data_all = pd.DataFrame(selected_data)
+            well_data_all['Date'] = pd.to_datetime(well_data_all['Date'])
+            well_data_all.rename(columns={'Date': 'TEST_DATE', 'Production': 'TSTOIL'}, inplace=True)
+        else:
+            if well not in adjusted_data['STRING_CODE'].unique():
+                return jsonify({"error": f"Well {well} not found in dataset."}), 404
+
+            well_data_all = adjusted_data[adjusted_data['STRING_CODE'] == well]
+
+            if custom_filter:
+                if 'date_range' in custom_filter:
+                    start_date, end_date = custom_filter['date_range']
+                    well_data_all = well_data_all[(well_data_all['TEST_DATE'] >= start_date) & (well_data_all['TEST_DATE'] <= end_date)]
+                if 'production_range' in custom_filter:
+                    min_prod, max_prod = custom_filter['production_range']
+                    well_data_all = well_data_all[(well_data_all['TSTOIL'] >= min_prod) & (well_data_all['TSTOIL'] <= max_prod)]
+            else:
+                two_years_ago = pd.Timestamp.now() - timedelta(days=2*365)
+                last_job_date = well_data_all[
+                    (well_data_all['JOB_CODE'].notnull()) &
+                    (~well_data_all['JOB_CODE'].isin(ignored_job_codes)) &
+                    (well_data_all['TEST_DATE'] >= two_years_ago)
+                ]['TEST_DATE'].max()
+
+                if pd.notnull(last_job_date):
+                    start_date = last_job_date
+                else:
+                    start_date = two_years_ago
+
+                well_data_all = well_data_all[well_data_all['TEST_DATE'] >= start_date]
+
+        well_data_all = well_data_all.sort_values(by='TEST_DATE')
+
+        validation_error = validate_dca_data(well_data_all)
+        if validation_error:
+            return jsonify({"error": validation_error}), 400
+
+        well_data_all = well_data_all[(well_data_all['TSTOIL'].diff().fillna(0) != 0) | (well_data_all['TSTFLUID'].diff().fillna(0) != 0)]
+
+        t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
+        q = well_data_all['TSTOIL']
+
+        exp_params, _ = curve_fit(exponential_decline, t, q, p0=[60, 0.01], maxfev=10000)
+        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=[60, 0.01], maxfev=10000)
+        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=[60, 0.01, 1.0], bounds=([0, 0, 0.5], [np.inf, 0.1, 2]), maxfev=10000)
+
+        latest_dca_result = (well_data_all, exp_params, harm_params, hyper_params)
+
+        historical_data = [
+            {"date": date.strftime('%Y-%m-%d'), "value": value, "fluid": fluid}
+            for date, value, fluid in zip(well_data_all['TEST_DATE'], well_data_all['TSTOIL'], well_data_all['TSTFLUID'])
+        ]
+
+        start_date = well_data_all['TEST_DATE'].min().strftime('%Y-%m-%d')
+        end_date = well_data_all['TEST_DATE'].max().strftime('%Y-%m-%d')
 
         return jsonify({
             "Exponential": exp_params.tolist(),
             "Harmonic": harm_params.tolist(),
             "Hyperbolic": hyper_params.tolist(),
-            "StartDate": well_data['TEST_DATE'].min().strftime('%Y-%m-%d'),
-            "EndDate": well_data['TEST_DATE'].max().strftime('%Y-%m-%d'),
-            "ActualData": actual_data
+            "ActualData": historical_data,
+            "StartDate": start_date,
+            "EndDate": end_date
         })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/predict_production', methods=['POST'])
 def predict_production():
+    global latest_dca_result
+
     try:
-        request_data = request.get_json()
-        well = request_data.get('well')
-        start_date = request_data.get('start_date', '2024-07-09')
-        selected_data = request_data.get('selected_data')  # Data yang dipilih
-        economic_limit = request_data.get('elr', 5)
+        data = request.get_json()
+        well = data.get('well')
+        economic_limit = data.get('economic_limit', 5)
+        selected_data = data.get('selected_data')
 
-        # Debugging
-        if not well:
-            return jsonify({"error": "Well parameter is missing"}), 400
-        if not selected_data:
-            print("Selected data is empty")
-        print(f"Start date: {start_date}, Economic limit: {economic_limit}")
+        if latest_dca_result is None:
+            return jsonify({"error": "Run 'historical_dca_analysis' first to generate DCA model."}), 400
 
-        # Validasi selected_data
+        well_data, exp_params, harm_params, hyper_params = latest_dca_result
+
+        # Update parameter model dengan nilai terakhir historis
+        last_q = well_data['TSTOIL'].iloc[-1]
+        exp_params = [last_q, exp_params[1]]
+        harm_params = [last_q, harm_params[1]]
+        hyper_params = [last_q, hyper_params[1], hyper_params[2]]
+
         if selected_data:
-            well_data = pd.DataFrame(selected_data)
-            well_data['Date'] = pd.to_datetime(well_data['Date'])
-            well_data = well_data.sort_values(by='Date')
+            if isinstance(selected_data, dict) and 'Date' in selected_data and 'Production' in selected_data:
+                start_date = pd.to_datetime(selected_data['Date'])
+                start_production = selected_data['Production']
+
+                # Update parameter model berdasarkan selected_data
+                exp_params = [start_production, exp_params[1]]
+                harm_params = [start_production, harm_params[1]]
+                hyper_params = [start_production, hyper_params[1], hyper_params[2]]
+            else:
+                return jsonify({"error": "Invalid selected_data format. Must contain 'Date' and 'Production'."}), 400
         else:
-            # Proses data dari start_date jika selected_data tidak ada
-            well_data = adjusted_data[(adjusted_data['STRING_CODE'] == well) & (adjusted_data['TEST_DATE'] >= start_date)]
-            if well_data.empty:
-                return jsonify({"error": f"No data available for well {well} starting from {start_date}."}), 404
+            start_date = well_data['TEST_DATE'].max()
 
-        # Prediksi DCA
-        t = (well_data['Date'] - well_data['Date'].min()).dt.days
-        q = well_data['Production']
+        def predict_to_economic_limit(model, params, economic_limit, start_date):
+            t = 0
+            predicted_dates = []
+            predicted_values = []
 
-        exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
-        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
-        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
+            while model(t, *params) > economic_limit:
+                predicted_dates.append(start_date + timedelta(days=t))
+                predicted_values.append(model(t, *params))
+                t += 1
 
-        # Prediksi ke depan
-        predictions = {"Exponential": [], "Harmonic": [], "Hyperbolic": []}
-        future_days = np.arange(0, predict_to_economic_limit(exponential_decline, exp_params, economic_limit))
+            return predicted_dates, predicted_values
 
-        for day in future_days:
-            predictions["Exponential"].append({
-                "date": (well_data['Date'].min() + pd.Timedelta(days=day)).strftime('%Y-%m-%d'),
-                "value": exponential_decline(day, *exp_params)
-            })
-            predictions["Harmonic"].append({
-                "date": (well_data['Date'].min() + pd.Timedelta(days=day)).strftime('%Y-%m-%d'),
-                "value": harmonic_decline(day, *harm_params)
-            })
-            predictions["Hyperbolic"].append({
-                "date": (well_data['Date'].min() + pd.Timedelta(days=day)).strftime('%Y-%m-%d'),
-                "value": hyperbolic_decline(day, *hyper_params)
-            })
+        exp_pred_dates, exp_pred_values = predict_to_economic_limit(
+            exponential_decline, exp_params, economic_limit, start_date
+        )
+        harm_pred_dates, harm_pred_values = predict_to_economic_limit(
+            harmonic_decline, harm_params, economic_limit, start_date
+        )
+        hyper_pred_dates, hyper_pred_values = predict_to_economic_limit(
+            hyperbolic_decline, hyper_params, economic_limit, start_date
+        )
 
-        return jsonify({"Predictions": predictions})
+        exp_predictions = [
+            {"date": date.strftime('%Y-%m-%d'), "value": value}
+            for date, value in zip(exp_pred_dates, exp_pred_values)
+        ]
+        harm_predictions = [
+            {"date": date.strftime('%Y-%m-%d'), "value": value}
+            for date, value in zip(harm_pred_dates, harm_pred_values)
+        ]
+        hyper_predictions = [
+            {"date": date.strftime('%Y-%m-%d'), "value": value}
+            for date, value in zip(hyper_pred_dates, hyper_pred_values)
+        ]
+
+        return jsonify({
+            "ExponentialPrediction": exp_predictions,
+            "HarmonicPrediction": harm_predictions,
+            "HyperbolicPrediction": hyper_predictions
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True)
