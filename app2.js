@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const chartElement = document.getElementById('chart');
   const loadingElement = document.getElementById('loading');
   const noDataElement = document.getElementById('noData');
-  let productionSeriesTemp = {};
 
   // Initialize chart with updated configuration
   let chart = new ApexCharts(chartElement, {
@@ -16,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       events: {
         markerClick: function(event, chartContext, { seriesIndex, dataPointIndex }) {
+          const tempPredictionData = JSON.parse(localStorage.getItem('tempPredictionData')) || [];
 
           const getLocalStorageProductionSeries = () => {
             const localStorageProductionSeries = localStorage.getItem('productionSeries');
@@ -29,13 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const groupDataPredictions = {
               well: wellDropdown.value,
               selected_data: {
-                Date: dataPoint.x,
+                Date: new Date(dataPoint.x).toISOString().split('T')[0],
                 Production: dataPoint.y
               },
-              elr: 10
+              elr: Number(document.getElementById('elr').value) || 10
             };
 
-            console.log(groupDataPredictions);
+            tempPredictionData.push(groupDataPredictions);
+            localStorage.setItem('tempPredictionData', JSON.stringify(tempPredictionData));
+            console.log(tempPredictionData);
+
             console.log('Matched Data:', dataPoint);
           } else {
             console.warning('No matching data found for the selected point.');
@@ -301,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
           yAxisIndex: 0,
         };
 
-        localStorage.setItem('productionSeries', JSON.stringify(localStorageProductionSeries));
+        localStorage.setItem('productionSeries', JSON.stringify(productionSeries));
 
         const fluidSeries = {
           name: 'Fluid',
@@ -622,17 +625,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (selectedData.length === 0) {
-      console.log(selectedData)
-      // Jika tidak ada data yang dipilih, ambil dua data terakhir dari grafik
-      const allData = chart.opts.series[0]?.data || [];
-      console.log("Chart Options:", chart.opts);
-      console.log("Series in Chart:", chart.opts.series);
-      console.log('all data:', allData);
-      if (allData.length >= 2) {
-        selectedData = allData.slice(-5); // Ambil dua data terakhir
+      const tempPredictionData = localStorage.getItem('tempPredictionData');
+      if (tempPredictionData) {
+        selectedData = JSON.parse(tempPredictionData);
       } else {
-        alert("Not enough data available for prediction.");
-        return;
+        // Jika tidak ada data yang dipilih, ambil dua data terakhir dari grafik
+        const allData = chart.opts.series[0]?.data || [];
+        console.log("Chart Options:", chart.opts);
+        console.log("Series in Chart:", chart.opts.series);
+        console.log('all data:', allData);
+        if (allData.length >= 2) {
+          selectedData = allData.slice(-5); // Ambil dua data terakhir
+        } else {
+          alert("Not enough data available for prediction.");
+          return;
+        }
       }
     }
 
@@ -643,6 +650,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-
+  removeTempSelectionProductionData();
 });
 
+
+function removeTempSelectionProductionData() {
+  localStorage.removeItem('tempPredictionData');
+}
