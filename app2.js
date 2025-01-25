@@ -15,11 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       events: {
         markerClick: function(event, chartContext, { seriesIndex, dataPointIndex }) {
-          const tempPredictionData = JSON.parse(localStorage.getItem('tempPredictionData')) || [];
+          const tempPredictionData = JSON.parse(localStorage.getItem('tempPredictionData')) || '';
 
           const getLocalStorageProductionSeries = () => {
             const localStorageProductionSeries = localStorage.getItem('productionSeries');
-            return localStorageProductionSeries ? JSON.parse(localStorageProductionSeries) : {};
+            return localStorageProductionSeries ? JSON.parse(localStorageProductionSeries) : '';
           };
 
           const productionSeries = getLocalStorageProductionSeries();
@@ -35,8 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
               elr: Number(document.getElementById('elr').value) || 10
             };
 
-            tempPredictionData.push(groupDataPredictions);
-            localStorage.setItem('tempPredictionData', JSON.stringify(tempPredictionData));
+            localStorage.setItem('tempPredictionData', JSON.stringify(groupDataPredictions));
             console.log(tempPredictionData);
 
             console.log('Matched Data:', dataPoint);
@@ -555,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  const fetchPredictionWithSelectedData = (selectedData, elr) => {
+  const fetchPredictionWithSelectedData = (selectedData) => {
     showLoading();
     const selectedWell = document.getElementById('wellDropdown').value;
 
@@ -565,21 +564,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (!selectedData || selectedData.length === 0) {
-      alert("No selected data available for prediction.");
-      hideLoading();
-      return;
-    }
-
     // Kirim data ke backend
     fetch('http://127.0.0.1:5000/predict_production', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        well: selectedWell,
-        economic_limit: elr, // Kirim ELR
-        selected_data: selectedData.length === 1 ? selectedData[0] : null // Kirim satu data saja jika dipilih
-      })
+      body: JSON.stringify(selectedData)
     })
       .then(response => response.json())
       .then(data => {
@@ -631,29 +620,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (selectedData.length === 0) {
-      const tempPredictionData = localStorage.getItem('tempPredictionData');
-      if (tempPredictionData) {
-        selectedData = JSON.parse(tempPredictionData);
+    const tempPredictionData = localStorage.getItem('tempPredictionData');
+    if (tempPredictionData) {
+      const parseDataPredictions = JSON.parse(tempPredictionData);
+      console.log(parseDataPredictions)
+      fetchPredictionWithSelectedData(parseDataPredictions);
+      if (typeof parseDataPredictions === 'object' && Object.keys(parseDataPredictions).length > 0) {
       } else {
-        // Jika tidak ada data yang dipilih, ambil dua data terakhir dari grafik
-        const allData = chart.opts.series[0]?.data || [];
-        console.log("Chart Options:", chart.opts);
-        console.log("Series in Chart:", chart.opts.series);
-        console.log('all data:', allData);
-        if (allData.length >= 2) {
-          selectedData = allData.slice(-5); // Ambil dua data terakhir
-        } else {
-          alert("Not enough data available for prediction.");
-          return;
-        }
+        console.log("No data selected for prediction.");
       }
+    } else {
+      console.log("No data selected for prediction.");
     }
-
-    console.log("Selected Data for Prediction:", selectedData);
-
-    // Panggil fungsi fetchPredictionWithSelectedData
-    fetchPredictionWithSelectedData(selectedData, elr);
   });
 
 
