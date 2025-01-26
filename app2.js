@@ -498,6 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
           y: point.value
         }));
 
+        console.log(actualData);
+
         const fluidData = data.ActualData.map(point => ({
           x: new Date(point.date),
           y: point.fluid
@@ -545,6 +547,20 @@ document.addEventListener('DOMContentLoaded', () => {
         chart.hideSeries('Harmonic Decline'); // Hide Harmonic Decline
         chart.hideSeries('Hyperbolic Decline'); // Hide Hyperbolic Decline
 
+        const getLastActualDataForPrediction = (data) => data[data.length - 1];
+
+        const groupDataPredictions = {
+          well: wellDropdown.value,
+          selected_data: {
+            Date: new Date(getLastActualDataForPrediction(actualData).x).toISOString().split('T')[0],
+            Production: getLastActualDataForPrediction(actualData).y
+          },
+          elr: Number(document.getElementById('elr').value) || 10
+        };
+
+        localStorage.setItem('tempPredictionData', JSON.stringify(groupDataPredictions));
+        console.log('get last actual data for prediction', getLastActualDataForPrediction(actualData));
+
       })
       .catch(error => {
         loadingMessage.style.display = 'none';
@@ -564,7 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Kirim data ke backend
     fetch('http://127.0.0.1:5000/predict_production', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -612,26 +627,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   predictDCAButton.addEventListener('click', () => {
     const selectedWell = document.getElementById('wellDropdown').value;
-    const elr = document.getElementById('elr').value || 5; // Default ELR = 5 jika kosong
-    let selectedData = window.selectedData || []; // Data dari brush selection
 
     if (!selectedWell) {
       alert("Please select a well to predict.");
       return;
+    } else {
+
+      const tempPredictionData = localStorage.getItem('tempPredictionData');
+      console.log(tempPredictionData)
+      if (tempPredictionData) {
+        const parseDataPredictions = JSON.parse(tempPredictionData);
+        fetchPredictionWithSelectedData(parseDataPredictions);
+        // if (typeof parseDataPredictions === 'object' && Object.keys(parseDataPredictions).length > 0) {
+        // } else {
+        //   alert("No data selected for prediction.");
+        // }
+      } else {
+        alert("No data selected for prediction.");
+      }
     }
 
-    const tempPredictionData = localStorage.getItem('tempPredictionData');
-    if (tempPredictionData) {
-      const parseDataPredictions = JSON.parse(tempPredictionData);
-      console.log(parseDataPredictions)
-      fetchPredictionWithSelectedData(parseDataPredictions);
-      if (typeof parseDataPredictions === 'object' && Object.keys(parseDataPredictions).length > 0) {
-      } else {
-        console.log("No data selected for prediction.");
-      }
-    } else {
-      console.log("No data selected for prediction.");
-    }
   });
 
 
