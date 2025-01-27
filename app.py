@@ -9,7 +9,7 @@ import matplotlib.patches as patches
 import joblib
 import io
 import pickle
-from xgboost import DMatrix
+
 import pandas as pd
 import numpy as np
 from dca_model import analyze_dca
@@ -470,7 +470,7 @@ def automatic_dca_analysis():
         if selected_data:
             well_data_all = pd.DataFrame(selected_data)
             well_data_all['Date'] = pd.to_datetime(well_data_all['Date'])
-            well_data_all.rename(columns={'Date': 'TEST_DATE', 'Production': 'TSTOIL'}, inplace=True)
+            well_data_all.rename(columns={'Date': 'TEST_DATE', 'Production': 'TSTOIL','Fluid': 'TSTFLUID'}, inplace=True)
         else:
             if well not in adjusted_data['STRING_CODE'].unique():
                 return jsonify({"error": f"Well {well} not found in dataset."}), 404
@@ -505,6 +505,8 @@ def automatic_dca_analysis():
         if validation_error:
             return jsonify({"error": validation_error}), 400
 
+        print("WIDI")
+        print(well_data_all)
         well_data_all = well_data_all[(well_data_all['TSTOIL'].diff().fillna(0) != 0) | (well_data_all['TSTFLUID'].diff().fillna(0) != 0)]
 
         t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
@@ -545,14 +547,18 @@ def predict_production():
     try:
         data = request.get_json()
         well = data.get('well')
-        economic_limit = data.get('economic_limit', 5)
+        economic_limit = float(data.get('economic_limit', 5))
         selected_data = data.get('selected_data')
+        print("Request Data:", data)
+        print("Selected Data:", data.get("selected_data"))
+        print("Economic Limit:", data.get("economic_limit"))
 
         if latest_dca_result is None:
             return jsonify({"error": "Run 'historical_dca_analysis' first to generate DCA model."}), 400
 
+        
         well_data, exp_params, harm_params, hyper_params = latest_dca_result
-
+        print("WIDI")
         # Update parameter model dengan nilai terakhir historis
         last_q = well_data['TSTOIL'].iloc[-1]
         exp_params = [last_q, exp_params[1]]
@@ -585,9 +591,11 @@ def predict_production():
 
             return predicted_dates, predicted_values
 
+        print("CHECKPOINT1")
         exp_pred_dates, exp_pred_values = predict_to_economic_limit(
             exponential_decline, exp_params, economic_limit, start_date
         )
+        print("CHECKPOINT2")
         harm_pred_dates, harm_pred_values = predict_to_economic_limit(
             harmonic_decline, harm_params, economic_limit, start_date
         )

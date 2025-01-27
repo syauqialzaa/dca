@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decline Curve Analysis</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+<h1 align="center">Decline Curve Analysis</h1>
+<!--<label for="wellDropdown">Select Well:</label>-->
+<!--<select id="wellDropdown">-->
+<!--  <option value="">All Wells</option>-->
+<!--</select>-->
+<!--<label for="startDate">Start Date:</label>-->
+<!--<input type="date" id="startDate">-->
+<!--<label for="endDate">End Date:</label>-->
+<!--<input type="date" id="endDate">-->
+<!--<button id="filterButton">Filter</button>-->
+<div class="container">
+  <!-- <div style="flex-direction: column;">
+    <div>
+      <p>Selected data automatic DCA </p>
+      <p id="selectedPredictData">
+        [Selected data automatic DCA]
+      </div>
+    </div>
+    <br><br>
+  
+    <div>
+      <p>Selected data Prediction DCA </p>
+      <p id="selectedPredictObject">
+        [Selected data Prediction DCA]
+      </div>
+    </div>
+  </div> -->
+  
+  
+  <!-- Filter Section -->
+  <div class="filter-section">
+    <div class="filter-group">
+      <label for="wellDropdown">Select Well:</label>
+      <select id="wellDropdown">
+        <option value="">All Wells</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="startDate">Start Date:</label>
+      <input type="date" id="startDate">
+    </div>
+    <div class="filter-group">
+      <label for="endDate">End Date:</label>
+      <input type="date" id="endDate">
+    </div>
+    <button id="filterButton">Filter</button>
+  </div>
+
+  <!-- DCA Options Section -->
+  <div id="dca-options">
+
+    <div id="dcaSection">
+      <div class="filter-group">
+        <label for="elr">ELR: </label>
+        <input type="number" id="elr" value="10" min="1" />
+      </div>
+<!--      <label for="elr">ELR: </label>-->
+<!--      <input type="number" id="elr" value="10" min="1" />-->
+      <button id="automateDCA" class="btn btn-primary">Automate DCA</button>
+      <button id="predictDCA" class="btn btn-primary">Predict DCA</button>
+      <button id="mlDCA" class="btn btn-primary">ML DCA</button>
+    </div>
+  </div>
+</div>
+
+<div id="loadingMessage" style="display:none;">Loading...</div>
+
+
+<div id="chart"></div>
+<!--<div id="points">-->
+<!--  <p><strong>Start Point:</strong> <span id="startPoint"></span></p>-->
+<!--  <p><strong>Mid Point:</strong> <span id="midPoint"></span></p>-->
+<!--  <p><strong>End Point:</strong> <span id="endPoint"></span></p>-->
+<!--</div>-->
+
+<div id="loading" style="display: none;">Loading...</div>
+<div id="noData" style="display: none; text-align: center; color: red;">No Data Found</div>
+<script src="app4.js"></script>
+</body>
+</html>
