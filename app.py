@@ -40,6 +40,8 @@ CORS(app)
 
 # Load dataset
 file_path = 'DCA1.xlsx'
+# df = pd.ExcelFile(file_path)
+# adjusted_data = df.parse('A002')
 adjusted_data = pd.read_excel(file_path)
 adjusted_data['TEST_DATE'] = pd.to_datetime(adjusted_data['TEST_DATE'], format='%d/%m/%Y')
 
@@ -66,24 +68,62 @@ def harmonic_decline(t, qi, b):
 def hyperbolic_decline(t, qi, b, n):
     return qi * (1 + b * t) ** (-1 / n)
 
+# Adjust fitting with better initial guesses and bounds
+fixed_dca_results = {}
+exp_initial = [60, 0.01]  # [qi, b]
+harm_initial = [60, 0.01]  # [qi, b]
+hyper_initial = [60, 0.01, 1.0]  # [qi, b, n]
+hyper_bounds = ([0, 0, 0.5], [np.inf, 0.1, 2])
+
 # Initialize global variable to store the latest DCA result
 latest_dca_result = None
 
-# Determine starting points for DCA based on data after the last JOB_CODE
-grouped_wells_dca = adjusted_data.groupby('STRING_CODE')
-dca_start_points_after_jobcode = {}
+# Determine starting points for DCA based on data after the last JOB_CODE (considering ignored JOB_CODE)
+def determine_dca_start_points(data, ignored_job_codes):
+    """
+    Determine the starting points for DCA, considering JOB_CODE relevance.
+    If only ignored JOB_CODEs are found, proceed with data after the last ignored JOB_CODE.
+    """
+    grouped_wells_dca = data.groupby('STRING_CODE')
+    dca_start_points_after_jobcode = {}
 
-for well, data in grouped_wells_dca:
-    data_sorted = data.sort_values(by='TEST_DATE')
-    last_jobcode_date = data_sorted[data_sorted['JOB_CODE'].notnull()]['TEST_DATE'].max()
-    data_after_jobcode = data_sorted[data_sorted['TEST_DATE'] > last_jobcode_date]
+    for well, well_data in grouped_wells_dca:
+        well_data_sorted = well_data.sort_values(by='TEST_DATE')
 
-    if not data_after_jobcode.empty:
-        oil_diff = data_after_jobcode['TSTOIL'].diff().fillna(0)
-        fluid_diff = data_after_jobcode['TSTFLUID'].diff().fillna(0)
-        stable_points = data_after_jobcode[(oil_diff <= 0) & (fluid_diff <= 0)]
-        if not stable_points.empty:
-            dca_start_points_after_jobcode[well] = stable_points.iloc[0]
+        # Filter JOB_CODEs
+        ignored_job_data = well_data_sorted[well_data_sorted['JOB_CODE'].isin(ignored_job_codes)]
+        valid_job_data = well_data_sorted[~well_data_sorted['JOB_CODE'].isin(ignored_job_codes) & well_data_sorted['JOB_CODE'].notnull()]
+
+        # Determine the last relevant date
+        if not valid_job_data.empty:
+            last_job_date = valid_job_data['TEST_DATE'].max()
+        elif not ignored_job_data.empty:
+            last_job_date = ignored_job_data['TEST_DATE'].max()
+        else:
+            last_job_date = None
+
+        # Get data after the determined last JOB_CODE date
+        if last_job_date is not None:
+            data_after_jobcode = well_data_sorted[well_data_sorted['TEST_DATE'] > last_job_date]
+        else:
+            data_after_jobcode = well_data_sorted  # Use all data if no JOB_CODE exists
+
+        # Identify stable points for DCA starting point
+        if not data_after_jobcode.empty:
+            oil_diff = data_after_jobcode['TSTOIL'].diff().fillna(0)
+            fluid_diff = data_after_jobcode['TSTFLUID'].diff().fillna(0)
+            stable_points = data_after_jobcode[(oil_diff <= 0) & (fluid_diff <= 0)]
+            if not stable_points.empty:
+                dca_start_points_after_jobcode[well] = stable_points.iloc[0]
+
+    return dca_start_points_after_jobcode
+
+ignored_job_codes = [
+            'PMP14', 'PMP29', 'PMP43', 'PMP45', 'PMP01', 'PMP02', 'PMP03',
+            'PMP04', 'PMP05', 'PMP31', 'PMP32', 'PMP33', 'PMP34', 'PMP35',
+            'PMP36', 'PMP37', 'PMP38', 'PMP39'
+        ]
+dca_start_points_after_jobcode = determine_dca_start_points(adjusted_data, ignored_job_codes)
 
 # Validate DCA data
 def validate_dca_data(well_data):
@@ -461,18 +501,14 @@ def automatic_dca_analysis():
         selected_data = data.get('selected_data')
         custom_filter = data.get('custom_filter')
 
-        ignored_job_codes = [
-            'PMP14', 'PMP29', 'PMP43', 'PMP45', 'PMP01', 'PMP02', 'PMP03',
-            'PMP04', 'PMP05', 'PMP31', 'PMP32', 'PMP33', 'PMP34', 'PMP35',
-            'PMP36', 'PMP37', 'PMP38', 'PMP39'
-        ]
+
 
         if selected_data:
             well_data_all = pd.DataFrame(selected_data)
             well_data_all['Date'] = pd.to_datetime(well_data_all['Date'])
             well_data_all.rename(columns={'Date': 'TEST_DATE', 'Production': 'TSTOIL','Fluid': 'TSTFLUID'}, inplace=True)
         else:
-            if well not in adjusted_data['STRING_CODE'].unique():
+            if well not in dca_start_points_after_jobcode:
                 return jsonify({"error": f"Well {well} not found in dataset."}), 404
 
             well_data_all = adjusted_data[adjusted_data['STRING_CODE'] == well]
@@ -505,16 +541,14 @@ def automatic_dca_analysis():
         if validation_error:
             return jsonify({"error": validation_error}), 400
 
-        print("WIDI")
-        print(well_data_all)
         well_data_all = well_data_all[(well_data_all['TSTOIL'].diff().fillna(0) != 0) | (well_data_all['TSTFLUID'].diff().fillna(0) != 0)]
 
         t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
         q = well_data_all['TSTOIL']
 
-        exp_params, _ = curve_fit(exponential_decline, t, q, p0=[60, 0.01], maxfev=10000)
-        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=[60, 0.01], maxfev=10000)
-        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=[60, 0.01, 1.0], bounds=([0, 0, 0.5], [np.inf, 0.1, 2]), maxfev=10000)
+        exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
+        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
+        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
 
         latest_dca_result = (well_data_all, exp_params, harm_params, hyper_params)
 
@@ -526,10 +560,20 @@ def automatic_dca_analysis():
         start_date = well_data_all['TEST_DATE'].min().strftime('%Y-%m-%d')
         end_date = well_data_all['TEST_DATE'].max().strftime('%Y-%m-%d')
 
+        # Faktor konversi dari per hari ke per tahun
+        DAYS_PER_YEAR = 365
+        # Faktor konversi ke persentase
+        PERCENTAGE_FACTOR = 100
+
         return jsonify({
-            "Exponential": exp_params.tolist(),
-            "Harmonic": harm_params.tolist(),
-            "Hyperbolic": hyper_params.tolist(),
+            "Exponential": [round(value, 4) for value in exp_params.tolist()],
+            "Harmonic": [round(value, 4) for value in harm_params.tolist()],
+            "Hyperbolic": [round(value, 4) for value in hyper_params.tolist()],
+            "DeclineRate": {
+                            "Exponential": round(exp_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
+                                    "Harmonic": round(harm_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
+                                    "Hyperbolic": round(hyper_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2)
+                        },
             "ActualData": historical_data,
             "StartDate": start_date,
             "EndDate": end_date
@@ -554,11 +598,10 @@ def predict_production():
         print("Economic Limit:", data.get("economic_limit"))
 
         if latest_dca_result is None:
-            return jsonify({"error": "Run 'historical_dca_analysis' first to generate DCA model."}), 400
+            return jsonify({"error": "Run 'Model Automate DCA' first to generate DCA Prediction."}), 400
 
-        
+
         well_data, exp_params, harm_params, hyper_params = latest_dca_result
-        print("WIDI")
         # Update parameter model dengan nilai terakhir historis
         last_q = well_data['TSTOIL'].iloc[-1]
         exp_params = [last_q, exp_params[1]]
@@ -591,11 +634,9 @@ def predict_production():
 
             return predicted_dates, predicted_values
 
-        print("CHECKPOINT1")
         exp_pred_dates, exp_pred_values = predict_to_economic_limit(
             exponential_decline, exp_params, economic_limit, start_date
         )
-        print("CHECKPOINT2")
         harm_pred_dates, harm_pred_values = predict_to_economic_limit(
             harmonic_decline, harm_params, economic_limit, start_date
         )
@@ -604,15 +645,15 @@ def predict_production():
         )
 
         exp_predictions = [
-            {"date": date.strftime('%Y-%m-%d'), "value": value}
+            {"date": date.strftime('%Y-%m-%d'), "value": round(value,2)}
             for date, value in zip(exp_pred_dates, exp_pred_values)
         ]
         harm_predictions = [
-            {"date": date.strftime('%Y-%m-%d'), "value": value}
+            {"date": date.strftime('%Y-%m-%d'), "value": round(value,2)}
             for date, value in zip(harm_pred_dates, harm_pred_values)
         ]
         hyper_predictions = [
-            {"date": date.strftime('%Y-%m-%d'), "value": value}
+            {"date": date.strftime('%Y-%m-%d'), "value": round(value,2)}
             for date, value in zip(hyper_pred_dates, hyper_pred_values)
         ]
 

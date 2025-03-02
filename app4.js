@@ -11,11 +11,41 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedPredictObject = undefined;
   let currentDataSeries = [];
 
+  const oilAxis ={
+      seriesName:"Oil",
+      title: {
+        text: 'Oil (BOPD)',
+      },
+      labels: {
+        formatter: function (value) {
+          return value.toFixed(2); // Format nilai hingga 2 desimal
+        },
+      },
+
+    }
+
+    const fluidAxis = {
+    seriesName:"Fluid",
+    opposite:true,
+    title: {
+      text: 'Fluid (BOPD)',
+    },
+    labels: {
+      formatter: function (value) {
+        return value.toFixed(2); // Format nilai hingga 2 desimal
+      },
+    },
+  }
+
+  const baseYAxis = [
+    oilAxis, fluidAxis, fluidAxis
+  ]
+
   // Initialize chart with updated configuration
   let chart = new ApexCharts(chartElement, {
     chart: {
       type: 'line',
-      height: 400,
+      height: 700,
       zoom: {
         // enabled: true, // Enable zooming for better exploration
       },
@@ -32,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
               dataPointIndex: selectedIndex
             })
           }
-          
+
         },
       }
     },
@@ -46,53 +76,19 @@ document.addEventListener('DOMContentLoaded', () => {
         text: 'Date',
       },
     },
-    yaxis: [
-      {
-        seriesName:"Oil",
-        title: {
-          text: 'Oil',
-        },
-        labels: {
-          formatter: function (value) {
-            return value.toFixed(2); // Format nilai hingga 2 desimal
-          },
-        },
-        // min: Math.min(...data.historical.map((d) => d.Production)) * 0.9, // Sesuaikan batas bawah
-        // max: Math.max(...data.historical.map((d) => d.Production)) * 1.1, // Sesuaikan batas atas
-      },
-      {
-        seriesName:"Fluid",
-        opposite: true,
-        title: {
-          text: 'Fluid',
-        },
-        labels: {
-          formatter: function (value) {
-            return value.toFixed(2); // Format nilai hingga 2 desimal
-          },
-        },
-
-      },
-      // {
-      //   seriesName:"Exponential Decline",
-      //   title: {
-      //     text: 'Exponential Decline',
-      //   },
-      //   labels: {
-      //     formatter: function (value) {
-      //       return value.toFixed(2); // Format nilai hingga 2 desimal
-      //     },
-      //   },
-      //   min: 0,
-      //   max: 150,
-      // },
-    ],
+    yaxis: baseYAxis,
     legend: {
       show: true,
+
       // position: 'top',
+      floating: false,
       horizontalAlign: 'center', // Membuat legenda dalam satu baris
       labels: {
-        useSeriesColors: true,
+        useSeriesColors: false,
+      },
+      itemMargin: {
+        horizontal: 10, // Menambahkan jarak antar legend
+        vertical: 5
       },
       markers: {
         width: 12,
@@ -101,9 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
       },
     },
     colors: [
+      '#2ca02c', // Oil Green
       '#1f77b4', // Blue
       '#ff7f0e', // Orange
-      '#2ca02c', // Green
       '#d62728', // Red
       '#9467bd', // Purple
       '#8c564b', // Brown
@@ -124,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
     events: {
-      
+
       selection: function (chartContext, { xaxis }) {
         // Tangkap range waktu yang dipilih (start dan end date)
         const startDate = new Date(xaxis.min).toISOString().split('T')[0];
@@ -134,8 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const date = new Date(point.x);
           return date >= new Date(startDate) && date <= new Date(endDate);
         });
-
-        // console.log("Selected Data:", selectedData); // Debugging untuk melihat data yang dipilih
 
         // Simpan data yang dipilih dalam variable global (opsional)
         window.selectedData = selectedData;
@@ -150,6 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Trigger backend call with selected data
         fetchPredictionWithSelectedData(selectedData, startDate, endDate);
       }
+    },
+    stroke: {
+      width: 1.5 // Membuat garis lebih tipis
     },
     markers: {
       size: [5,5, 5,5,0,0,0,0,0,0], // Customize marker size for better visualization
@@ -208,7 +205,19 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedPredictObject = data
       updateSelectedPredictObjectView();
     }
-    
+
+  }
+
+  function getFinalAxisSeries(series){
+    const baseAxisLength = baseYAxis.length
+    const newSeriesLength = series.length
+
+    const newAxis = [...baseYAxis]
+    const diffLength = newSeriesLength - baseAxisLength
+    for (let i = 0; i < diffLength; i++) {
+      newAxis.push(oilAxis)
+    }
+    return newAxis;
   }
 
   function updateChartMarkerConfig(series){
@@ -258,7 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     ]
     currentDataSeries = newSeries;
-    chart.updateSeries(newSeries)
+    chart.updateOptions({
+      series: newSeries,
+      yaxis: getFinalAxisSeries(newSeries)
+    })
+    // chart.updateSeries(newSeries)
     updateChartMarkerConfig(newSeries)
     document.getElementById("selectedPredictData").innerText = dateString;
   }
@@ -287,7 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     ]
     currentDataSeries = newSeries;
-    chart.updateSeries(newSeries)
+    chart.updateOptions({
+      series: newSeries,
+      yaxis: getFinalAxisSeries(newSeries)
+    })
+    // chart.updateSeries(newSeries)
     updateChartMarkerConfig(newSeries)
   }
 
@@ -343,56 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
       wellDropdown.innerHTML = '<option value="">Failed to load</option>';
     });
 
-  // // Fetch and display historical data
-  // const fetchHistory = (well, startDate, endDate) => {
-  //   showLoading(); // Show loading spinner
-  //   fetch('http://127.0.0.1:5000/get_history', {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //     },
-  //     body: JSON.stringify({ well, start_date: startDate, end_date: endDate }),
-  //   })
-  //     .then((response) => response.json())
-  //     .then((data) => {
-  //       hideLoading(); // Hide loading spinner
-  //
-  //       if (data.length === 0) {
-  //         showNoData(); // Show "No Data Found" if no data
-  //       } else {
-  //         hideNoData(); // Hide "No Data Found" message
-  //
-  //         // Series untuk Production (line) pada y-axis pertama (index 0)
-  //         const productionSeries = {
-  //           name: 'Oil Production',
-  //           type: 'line',
-  //           data: data.map((entry) => ({
-  //             x: entry.Date,
-  //             y: entry.Production,
-  //           })),
-  //           yAxisIndex: 0
-  //         };
-  //
-  //         // Series untuk Fluid (scatter) pada y-axis kedua (index 1)
-  //         const fluidSeries = {
-  //           name: 'Fluid',
-  //           type: 'scatter',
-  //           data: data.map((entry) => ({
-  //             x: entry.Date,
-  //             y: entry.Fluid,
-  //           })),
-  //           yAxisIndex: 1
-  //         };
-  //
-  //         chart.updateSeries([productionSeries, fluidSeries]);
-  //       }
-  //     })
-  //     .catch((error) => {
-  //       hideLoading(); // Hide loading spinner even on error
-  //       console.error('Error fetching history:', error);
-  //     });
-  // };
-
   const fetchHistory = (well, startDate, endDate) => {
     showLoading(); // Show loading spinner
     fetch('http://127.0.0.1:5000/get_history', {
@@ -420,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         hideNoData(); // Hide "No Data Found" message
-        
+
         productionData = data;
         // Transform data for chart
         const productionSeries = {
@@ -430,47 +397,54 @@ document.addEventListener('DOMContentLoaded', () => {
             x: new Date(entry.Date), // Convert date string to Date object
             y: entry.Production,
           })),
+          yAxisIndex: 0, // Gunakan sumbu Y pertama untuk Oil
           showMarker: true,
         };
 
         const fluidSeries = {
           name: 'Fluid',
-          type: 'scatter', // Use scatter for fluid
+          type: 'line', // Use scatter for fluid
           data: data.map((entry) => ({
             x: new Date(entry.Date), // Convert date string to Date object
             y: entry.Fluid,
           })),
+          yAxisIndex: 1, // Gunakan sumbu Y kedua untuk Fluid
           showMarker: true,
         };
 
+        const maxFluid = Math.max(...data.map(entry => entry.Fluid)) + 100;
         const jobCodeSeries = {
           name: "Job Code",
           type: "scatter",
           group: "default",
           data: data.filter((it) => !!it?.JobCode).map((entry) => ({
             x: entry.Date,
-            y: 2500,
+            y: maxFluid,
             name: entry.JobCode
           })),
+          yAxisIndex: 0, // Gunakan sumbu Y pertama (sama dengan Oil)
           showMarker: true,
         }
 
-        console.log("Production series:", productionSeries); // Debugging series data
-        console.log("Fluid series:", fluidSeries); // Debugging series data
         currentDataSeries = [
           productionSeries,
           fluidSeries,
-          jobCodeSeries
+          jobCodeSeries,
         ]
-        // Update chart series
-        chart.updateSeries(currentDataSeries)
-          .then(() => {
-            console.log("Chart updated successfully.", chart.opts.series);
-          })
-          .catch((error) => {
-            console.error("Error updating chart series:", error);
-          });
-          updateChartMarkerConfig(currentDataSeries)
+
+        chart.updateOptions({
+          series: currentDataSeries,
+          yaxis:baseYAxis
+        })
+        // // Update chart series
+        // chart.updateSeries(currentDataSeries)
+        //   .then(() => {
+        //     console.log("Chart updated successfully.", chart.opts.series);
+        //   })
+        //   .catch((error) => {
+        //     console.error("Error updating chart series:", error);
+        //   });
+        //   updateChartMarkerConfig(currentDataSeries)
 
         console.log("Chart Options after update:", chart.opts);
       })
@@ -493,110 +467,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const endDate = document.getElementById('endDate').value;
     fetchHistory(selectedWell, startDate, endDate);
   });
-/*
-  const analyzeDCAButton = document.getElementById('analyzeDCA');
-
-  analyzeDCAButton.addEventListener('click', () => {
-    const selectedWell = wellDropdown.value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-
-    // Show loading spinner
-    showLoading();
-
-    // Fetch DCA analysis
-    fetch('http://127.0.0.1:5000/calculate_dca3', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ well: selectedWell, start_date: startDate, end_date: endDate }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        hideLoading();
-
-        if (data.error) {
-          console.error(data.error);
-          alert('Error calculating DCA');
-          return;
-        }
-
-        // Update start, mid, and end point information
-        document.getElementById('startPoint').innerText = data.start_date;
-        document.getElementById('midPoint').innerText = data.mid_date;
-        document.getElementById('endPoint').innerText = data.end_date;
-
-        // Update chart with DCA analysis
-        chart.updateSeries([
-          {
-            name: 'Historical Data',
-            data: data.historical.map((entry) => ({
-              x: entry.Date,
-              y: entry.Production,
-            })),
-          },
-          {
-            name: 'Exponential Decline',
-            data: data.exponential.map((entry) => ({
-              x: entry.Date,
-              y: entry.Production,
-            })),
-          },
-          {
-            name: 'Harmonic Decline',
-            data: data.harmonic.map((entry) => ({
-              x: entry.Date,
-              y: entry.Production,
-            })),
-          },
-          {
-            name: 'Hyperbolic Decline',
-            data: data.hyperbolic.map((entry) => ({
-              x: entry.Date,
-              y: entry.Production,
-            })),
-          },
-        ]);
-
-        // Highlight start, mid, and end points
-        const annotations = [
-          {
-            x: new Date(data.start_date).getTime(),
-            borderColor: '#00E396',
-            label: {
-              text: 'Start Point',
-              style: { color: '#fff', background: '#00E396' },
-            },
-          },
-          {
-            x: new Date(data.mid_date).getTime(),
-            borderColor: '#FEB019',
-            label: {
-              text: 'Mid Point',
-              style: { color: '#fff', background: '#FEB019' },
-            },
-          },
-          {
-            x: new Date(data.end_date).getTime(),
-            borderColor: '#FF4560',
-            label: {
-              text: 'End Point',
-              style: { color: '#fff', background: '#FF4560' },
-            },
-          },
-        ];
-        chart.updateOptions({
-          annotations: { xaxis: annotations },
-        });
-      })
-      .catch((error) => {
-        hideLoading();
-        console.error('Error fetching DCA:', error);
-        alert('An unexpected error occurred. Please try again.');
-      });
-  });
-*/
 
   document.getElementById('automateDCA').addEventListener('click', function () {
     const selectedWell = document.getElementById('wellDropdown').value;
@@ -618,9 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }) ?? undefined;
 
-    console.log("Selected Well for Automation:", selectedWell);
-    console.log("Selected Data for Automation:", JSON.stringify(selected_data, null, 2));
-    
 
     fetch('http://127.0.0.1:5000/automatic_dca', {
       method: 'POST',
@@ -637,6 +504,11 @@ document.addEventListener('DOMContentLoaded', () => {
           alert(`Error: ${data.error}`);
           return;
         }
+
+        // **✅ Update nilai Decline Rate di Frontend**
+        document.getElementById('exp-decline').value = `${data.DeclineRate.Exponential}`;
+        document.getElementById('harm-decline').value = `${data.DeclineRate.Harmonic}`;
+        document.getElementById('hyper-decline').value = `${data.DeclineRate.Hyperbolic}`;
 
         const actualData = data.ActualData.map(point => ({
           x: new Date(point.date),
@@ -664,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const predictionValue = modelFunction(t, ...params);
             predictions.push({
               x: new Date(currentDate),
-              y: predictionValue
+              y: parseFloat(predictionValue).toFixed(2)
             });
             t += 1; // Increment time by 1 day
             currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
@@ -677,6 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const harmonicData = generatePrediction(harmonicModel, data.Harmonic, startDate, endDate);
         const hyperbolicData = generatePrediction(hyperbolicModel, data.Hyperbolic, startDate, endDate);
 
+        console.log("range exp : ", exponentialData);
         const productionSeries = {
           name: 'Oil',
           type: 'line',
@@ -690,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fluidSeries = {
           name: 'Fluid',
-          type: 'scatter', // Use scatter for fluid
+          type: 'line', // Use scatter for fluid
           hidden: true,
           data: productionData.map((entry) => ({
             x: new Date(entry.Date), // Convert date string to Date object
@@ -710,12 +583,13 @@ document.addEventListener('DOMContentLoaded', () => {
             y: 2500,
             name: entry.JobCode
           })),
+          yAxisIndex: 0,
           showMarker: true,
         }
 
         // update current data series, set job code and fluid series hidden
         currentDataSeries = currentDataSeries.map((it) => {
-          if(it.name === "Job Code" || it.name === "Fluid"){
+          if(it.name === "Job Code"){
             return {
               ...it,
               hidden: true
@@ -723,26 +597,27 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           return it;
         })
+        // console.log("current data serr: ", currentDataSeries);
 
         // remove prediction series
         currentDataSeries = currentDataSeries.filter((it) => !it.isPrediction);
         const newSeries = [
-          { name: 'Exponential Decline', type: 'line', data: exponentialData, hidden: false},
-          { name: 'Harmonic Decline', type: 'line', data: harmonicData, hidden:true},
-          { name: 'Hyperbolic Decline', type: 'line', data: hyperbolicData, hidden:true }
+          { name: 'Exponential Decline', type: 'line', data: exponentialData,  yaxis: 0, hidden: false},
+          { name: 'Harmonic Decline', type: 'line', data: harmonicData, yaxis: 0, hidden:true},
+          { name: 'Hyperbolic Decline', type: 'line', data: hyperbolicData, yaxis: 0, hidden:true }
         ]
+        // console.log("current data serr 2: ", currentDataSeries);
         const finalSeries = appendUniqueSeries(currentDataSeries, newSeries);
+        // console.log("final : ", finalSeries)
         currentDataSeries = finalSeries;
 
-        chart.updateSeries(finalSeries);
+        chart.updateOptions({
+          series: finalSeries,
+          yaxis: getFinalAxisSeries(finalSeries)
+        })
+        // chart.updateSeries(finalSeries);
         updateChartMarkerConfig(finalSeries)
 
-        // Hide certain series by default
-        // chart.hideSeries('Fluid Data'); // Hide Fluid Data
-        // chart.hideSeries('Harmonic Decline'); // Hide Harmonic Decline
-        // chart.hideSeries('Hyperbolic Decline'); // Hide Hyperbolic Decline
-
-        
       })
       .catch(error => {
         loadingMessage.style.display = 'none';
@@ -761,12 +636,6 @@ document.addEventListener('DOMContentLoaded', () => {
       hideLoading();
       return;
     }
-
-    // if (!selectedData || selectedData.length === 0) {
-    //   alert("No selected data available for prediction.");
-    //   hideLoading();
-    //   return;
-    // }
 
     // Kirim data ke backend
     console.log("well", selectedWell)
@@ -813,11 +682,11 @@ document.addEventListener('DOMContentLoaded', () => {
           y: point.value
         }));
 
-        
+
         const newSeries = [
-          { name: 'Exponential Decline (Prediction)', type: 'line', data: exponentialData, hidden: false,isPrediction: true },
-          { name: 'Harmonic Decline (Prediction)', type: 'line', data: harmonicData , hidden: true, isPrediction: true},
-          { name: 'Hyperbolic Decline (Prediction)', type: 'line', data: hyperbolicData, hidden: true, isPrediction: true }
+          { name: 'Exponential Decline (Prediction)', type: 'line', data: exponentialData, yAxisIndex: 0, hidden: false,isPrediction: true },
+          { name: 'Harmonic Decline (Prediction)', type: 'line', data: harmonicData, yAxisIndex: 0, hidden: true, isPrediction: true},
+          { name: 'Hyperbolic Decline (Prediction)', type: 'line', data: hyperbolicData, yAxisIndex: 0, hidden: true, isPrediction: true }
         ]
         const predictionSeries = [
           ...currentDataSeries
@@ -825,7 +694,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const finalSeries = appendUniqueSeries(predictionSeries, newSeries);
         currentDataSeries = finalSeries;
-        chart.updateSeries(finalSeries);
+        chart.updateOptions({
+          series: finalSeries,
+          yaxis: getFinalAxisSeries(finalSeries)
+        })
+        // chart.updateSeries(finalSeries);
         updateChartMarkerConfig(finalSeries)
       })
       .catch(error => {
@@ -847,21 +720,9 @@ document.addEventListener('DOMContentLoaded', () => {
       alert("Please select a well to predict.");
       return;
     }
-
-    // if (selectedData.length === 0) {
-    //   // Jika tidak ada data yang dipilih, ambil dua data terakhir dari grafik
-    //   const allData = chart.opts.series[0]?.data || [];
-    //   if (allData.length >= 2) {
-    //     selectedData = allData.slice(-1); // Ambil satu data terakhir
-    //   } else {
-    //     alert("Not enough data available for prediction.");
-    //     return;
-    //   }
-    // }
-
     // latest selectedPredictData
     selectedData=selectedPredictData[selectedPredictData.length - 1];
-    
+
     // selectedData = selectedData?.length ? selectedData[selectedData?.length - 1] : undefined;
 
     console.log("Selected Data for Prediction:", selectedData);
@@ -869,7 +730,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Panggil fungsi fetchPredictionWithSelectedData
     fetchPredictionWithSelectedData(selectedData, elr);
   });
-
-
-
 });

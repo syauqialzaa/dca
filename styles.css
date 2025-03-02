@@ -102,6 +102,7 @@ button {
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
+  max-width: 200px;
 }
 
 button:hover {
@@ -148,8 +149,8 @@ button:active {
 /* Container for both sections */
 .container {
   display: flex;
-  justify-content: flex-start; /* Align items to the start */
-  align-items: flex-start; /* Align sections at the top */
+  justify-content: space-between; /* Align items to the start */
+  align-items: center; /* Align sections at the top */
   gap: 10px; /* Reduce gap between sections */
   margin-bottom: 20px; /* Add spacing below the container */
   flex-wrap: wrap; /* Allow wrapping for smaller screens */
@@ -157,9 +158,16 @@ button:active {
 
 /* Styling for filter and DCA sections */
 .filter-section, #dca-options {
+  background-color: lightgrey;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 15px; /* Add consistent spacing between items */
+  justify-content: space-around; /* Membuat elemen tersebar dengan baik */
+  flex-wrap: wrap; /* Memungkinkan elemen untuk berpindah baris di layar kecil */
+  padding: 15px;
+  gap: 15px;
+  width: 100%;
+  max-width: 1200px; /* Atur batas maksimum agar tidak terlalu melebar */
 }
 
 /* Adjust section widths to align properly */
@@ -176,10 +184,16 @@ button:active {
 
 /* Styling for individual groups */
 .filter-group {
+  /*display: flex;*/
+  /*flex-direction: column;*/
+  /*align-items: flex-start;*/
+  /*margin-right: 10px; !* Add some margin between groups *!*/
+
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  margin-right: 10px; /* Add some margin between groups */
+  align-items: center;
+  font-size: 14px;
+  font-weight: bold;
 }
 
 #dcaSection {
@@ -187,7 +201,86 @@ button:active {
   border-radius: 10px;
   display: flex;
   align-items: center;
+  justify-content: space-around; /* Membuat elemen tersebar dengan baik */
+  flex-wrap: wrap; /* Memungkinkan elemen untuk berpindah baris di layar kecil */
+  padding: 15px;
+  gap: 15px;
+  width: 100%;
+  max-width: 1200px; /* Atur batas maksimum agar tidak terlalu melebar */
+}
+
+/* Decline Rate Section in Horizontal Layout */
+#decline-rate-section {
+  background-color: lightgrey;
+  padding: 10px;
+  border-radius: 10px;
+  /*box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);*/
+  text-align: center;
+  display: flex;
+  flex-direction: row; /* Change from column to row */
+  justify-content: space-between;
+  align-items: center;
   gap: 10px;
+  /*min-width: 400px;*/
+  /*max-width: fit-content;*/
+}
+
+/* Styling for Decline Rate Items */
+.decline-rate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  gap: 5px;
+  min-width: 100px; /* Supaya tidak mengecil terlalu banyak */
+}
+
+.decline-rate input {
+  text-align: center;
+  width: 80px; /* Lebar yang lebih konsisten */
+}
+
+button.btn {
+  white-space: nowrap; /* Mencegah teks dalam tombol terpotong */
+  padding: 10px 15px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Ensure alignment for labels and values */
+.decline-rate label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+}
+
+.decline-rate span {
+  font-size: 14px;
+  font-weight: bold;
+  color: #007bff;
+}
+/* Media Query untuk tampilan lebih kecil */
+@media (max-width: 1024px) {
+  #dcaSection {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .decline-rate {
+    flex-direction: row; /* Ubah dari column ke row */
+    justify-content: space-between;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  button.btn {
+    width: 100%; /* Agar tombol lebih besar di layar kecil */
+  }
 }
 
 /* Responsive layout for smaller screens */
@@ -202,7 +295,25 @@ button:active {
     flex-direction: column;
     gap: 10px;
   }
+
+  .decline-rate {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #dcaSection {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+.apexcharts-legend-group {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: space-between !important;
 }
 
+.apexcharts-legend-group-vertical {
+  flex-direction: row !important;
+}
 
 
