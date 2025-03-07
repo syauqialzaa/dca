@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     legend: {
       show: true,
 
-      // position: 'top',
+      position: 'top',
       floating: false,
       horizontalAlign: 'center', // Membuat legenda dalam satu baris
       labels: {
