@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ...filteredSeries,
       {
         name: "Selected Automatic Data",
-        type: "line",
+        type: "scatter",
         title: {
           text: "Selected Automatic Data"
         },
