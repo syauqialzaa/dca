@@ -70,10 +70,10 @@ def hyperbolic_decline(t, qi, b, n):
 
 # Adjust fitting with better initial guesses and bounds
 fixed_dca_results = {}
-exp_initial = [60, 0.01]  # [qi, b]
-harm_initial = [60, 0.01]  # [qi, b]
-hyper_initial = [60, 0.01, 1.0]  # [qi, b, n]
-hyper_bounds = ([0, 0, 0.5], [np.inf, 0.1, 2])
+# exp_initial = [60, 0.01]  # [qi, b]
+# harm_initial = [60, 0.01]  # [qi, b]
+# hyper_initial = [60, 0.01, 1.0]  # [qi, b, n]
+# hyper_bounds = ([0, 0, 0.5], [np.inf, 0.1, 2])
 
 # Initialize global variable to store the latest DCA result
 latest_dca_result = None
@@ -546,6 +546,14 @@ def automatic_dca_analysis():
         t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
         q = well_data_all['TSTOIL']
 
+        qi_initial = well_data_all['TSTOIL'].iloc[0]
+        exp_initial = [qi_initial, 0.01]
+        harm_initial = [qi_initial, 0.01]
+        hyper_initial = [qi_initial, 0.01, 1.0]
+        hyper_bounds = ([0, 0, 0], [np.inf, 1.0, 2])
+
+        print("qi data : ", qi_initial)
+
         exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
         harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
         hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
@@ -571,8 +579,8 @@ def automatic_dca_analysis():
             "Hyperbolic": [round(value, 4) for value in hyper_params.tolist()],
             "DeclineRate": {
                             "Exponential": round(exp_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
-                                    "Harmonic": round(harm_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
-                                    "Hyperbolic": round(hyper_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2)
+                            "Harmonic": round(harm_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
+                            "Hyperbolic": round(hyper_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2)
                         },
             "ActualData": historical_data,
             "StartDate": start_date,
