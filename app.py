@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 from dca_model import analyze_dca
 import logging
+# import tensorflow as tf
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 logging.basicConfig(level=logging.DEBUG)
@@ -22,6 +23,9 @@ app = Flask(__name__)
 # Allow cross-origin requests
 # CORS(app, resources={r"/generate": {"origins": "http://localhost:63342"}})
 CORS(app)
+
+# Load model once on startup
+# model = tf.keras.models.load_model("hybrid_tft_lstm_model.h5")
 
 # # Load trained models
 # depth_model = joblib.load('depth_model.pkl')
@@ -58,7 +62,7 @@ def handle_outliers(data, column):
 adjusted_data = handle_outliers(adjusted_data, 'TSTOIL')
 adjusted_data = handle_outliers(adjusted_data, 'TSTFLUID')
 
-# Define DCA models
+# Define DCA models using curve_fit
 def exponential_decline(t, qi, b):
     return qi * np.exp(-b * t)
 
@@ -67,6 +71,45 @@ def harmonic_decline(t, qi, b):
 
 def hyperbolic_decline(t, qi, b, n):
     return qi * (1 + b * t) ** (-1 / n)
+
+# Define DCA models using Regresi Linear
+def fit_exponential_linear(t, q):
+    ln_q = np.log(q)
+    slope, intercept = np.polyfit(t, ln_q, 1)
+    d = -slope
+    qi = np.exp(intercept)
+    return [qi, d]
+
+def fit_harmonic_linear(t, q):
+    inv_q = 1 / q
+    slope, intercept = np.polyfit(t, inv_q, 1)
+    b = slope
+    qi = 1 / intercept
+    return [qi, b]
+
+def fit_hyperbolic_linear(t, q, b_values=[0.001, 0.005, 0.01]):
+    best_params = None
+    best_mse = float('inf')
+
+    for b_init in b_values:
+        ln_q = np.log(q)
+        ln_term = np.log(1 + b_init * t)
+
+        slope, intercept = np.polyfit(ln_term, ln_q, 1)
+        n = -1 / slope
+        qi = np.exp(intercept)
+
+        params = [qi, b_init, n]
+        prediction = hyperbolic_decline(t, *params)
+        mse = np.mean((prediction - q) ** 2)
+
+        if mse < best_mse:
+            best_mse = mse
+            best_params = params
+
+    return best_params
+
+
 
 # Adjust fitting with better initial guesses and bounds
 fixed_dca_results = {}
@@ -490,6 +533,42 @@ def calculate_ml():
 #         print(e)
 #         return jsonify({'error': 'An unexpected error occurred. Please try again.'}), 500
 
+def safe_curve_fit(model_func, t, q, param_grid, bounds=None, maxfev=10000):
+    best_params = None
+    lowest_error = float('inf')
+
+    for p0 in param_grid:
+        try:
+            if bounds:
+                params, _ = curve_fit(model_func, t, q, p0=p0, bounds=bounds, maxfev=maxfev)
+            else:
+                params, _ = curve_fit(model_func, t, q, p0=p0, maxfev=maxfev)
+
+            prediction = model_func(t, *params)
+            mse = np.mean((prediction - q) ** 2)
+
+            if mse < lowest_error:
+                lowest_error = mse
+                best_params = params
+        except:
+            continue  # skip jika gagal konvergen
+
+    return best_params
+
+from sklearn.metrics import mean_squared_error, r2_score
+
+def evaluate_model(t, q_actual, model_func, params):
+    q_pred = model_func(t, *params)
+    mse = mean_squared_error(q_actual, q_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(q_actual, q_pred)
+    return {
+        "mse": round(mse, 4),
+        "rmse": round(rmse, 4),
+        "r2": round(r2, 4),
+        "prediction": q_pred
+    }
+
 
 @app.route('/automatic_dca', methods=['POST'])
 def automatic_dca_analysis():
@@ -500,8 +579,6 @@ def automatic_dca_analysis():
         well = data.get('well')
         selected_data = data.get('selected_data')
         custom_filter = data.get('custom_filter')
-
-
 
         if selected_data:
             well_data_all = pd.DataFrame(selected_data)
@@ -535,18 +612,22 @@ def automatic_dca_analysis():
 
                 well_data_all = well_data_all[well_data_all['TEST_DATE'] >= start_date]
 
+        print("Selected Data oi: ", selected_data)
         well_data_all = well_data_all.sort_values(by='TEST_DATE')
 
         validation_error = validate_dca_data(well_data_all)
         if validation_error:
             return jsonify({"error": validation_error}), 400
 
-        well_data_all = well_data_all[(well_data_all['TSTOIL'].diff().fillna(0) != 0) | (well_data_all['TSTFLUID'].diff().fillna(0) != 0)]
-
+        # print("Sebelum filter:", well_data_all.index)
+        # well_data_all = well_data_all[(well_data_all['TSTOIL'].diff().fillna(0) != 0) | (well_data_all['TSTFLUID'].diff().fillna(0) != 0)]
+        # print("Setelah filter:", well_data_all.index)
+        # well_data_all = well_data_all.reset_index(drop=True)
+        # print("Setelah reset:", well_data_all.index)
         t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
         q = well_data_all['TSTOIL']
 
-        qi_initial = well_data_all['TSTOIL'].iloc[0]
+        qi_initial = well_data_all['TSTOIL'].loc[0]
         exp_initial = [qi_initial, 0.01]
         harm_initial = [qi_initial, 0.01]
         hyper_initial = [qi_initial, 0.01, 1.0]
@@ -554,9 +635,43 @@ def automatic_dca_analysis():
 
         print("qi data : ", qi_initial)
 
-        exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
-        harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
-        hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
+        # DCA using curve fit
+#         exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
+#         harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
+#         hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
+
+        # Parameter awal alternatif untuk grid search
+        qi = qi_initial
+        d_values = [0.001, 0.005, 0.01, 0.02]
+        b_values = [0.001, 0.01, 0.05]
+        n_values = [0.8, 1.0, 1.2]
+
+        # --- Exponential ---
+        exp_grid = [[qi, d] for d in d_values]
+        exp_params_cf = safe_curve_fit(exponential_decline, t, q, exp_grid)
+
+        # --- Harmonic ---
+        harm_grid = [[qi, b] for b in b_values]
+        harm_params_cf = safe_curve_fit(harmonic_decline, t, q, harm_grid)
+
+        # --- Hyperbolic ---
+        hyper_grid = [[qi, d, n] for d in d_values for n in n_values]
+        hyper_bounds = ([0, 0, 0], [np.inf, 1.0, 2])
+        hyper_params_cf = safe_curve_fit(hyperbolic_decline, t, q, hyper_grid, bounds=hyper_bounds)
+
+        print("Best Exponential:", exp_params_cf)
+        print("Best Harmonic:", harm_params_cf)
+        print("Best Hyperbolic:", hyper_params_cf)
+
+
+        # DCA using Regresi Linear
+        exp_params_excel = fit_exponential_linear(t, q)
+        harm_params_excel = fit_harmonic_linear(t, q)
+        hyper_params_excel = fit_hyperbolic_linear(t, q, b_values=[0.001, 0.005, 0.01])
+
+        exp_params = exp_params_excel
+        harm_params = harm_params_excel
+        hyper_params = hyper_params_excel
 
         latest_dca_result = (well_data_all, exp_params, harm_params, hyper_params)
 
@@ -573,10 +688,26 @@ def automatic_dca_analysis():
         # Faktor konversi ke persentase
         PERCENTAGE_FACTOR = 100
 
+#         exp_eval = evaluate_model(t, q, exponential_decline, exp_params)
+#         harm_eval = evaluate_model(t, q, harmonic_decline, harm_params)
+#         hyper_eval = evaluate_model(t, q, hyperbolic_decline, hyper_params)
+
+        exp_eval_excel = evaluate_model(t, q, exponential_decline, exp_params_excel)
+        harm_eval_excel = evaluate_model(t, q, harmonic_decline, harm_params_excel)
+        hyper_eval_excel = evaluate_model(t, q, hyperbolic_decline, hyper_params_excel)
+
+        print("exp eval ", exp_eval_excel)
+        print("harm eval ", harm_eval_excel)
+        print("hyper eval ", hyper_eval_excel)
+
+
         return jsonify({
-            "Exponential": [round(value, 4) for value in exp_params.tolist()],
-            "Harmonic": [round(value, 4) for value in harm_params.tolist()],
-            "Hyperbolic": [round(value, 4) for value in hyper_params.tolist()],
+            "Exponential": exp_params,
+            "Harmonic": harm_params,
+            "Hyperbolic": hyper_params,
+#             "Exponential": [round(value, 4) for value in exp_params.tolist()],
+#             "Harmonic": [round(value, 4) for value in harm_params.tolist()],
+#             "Hyperbolic": [round(value, 4) for value in hyper_params.tolist()],
             "DeclineRate": {
                             "Exponential": round(exp_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
                             "Harmonic": round(harm_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
@@ -673,6 +804,78 @@ def predict_production():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/predict_ml", methods=["POST"])
+def predictml():
+    data = request.get_json()
+    elr = data.get("elr", 10.0)
+
+    # Validasi ELR
+    if not isinstance(elr, (int, float)) or elr <= 0:
+        return jsonify({"error": "ELR must be a positive number"}), 400
+
+    df = adjusted_data.copy()
+    df.dropna(subset=['TSTFLUID', 'TSTOIL'], inplace=True)
+    df = df.sort_values(by='TEST_DATE')
+    df['days'] = (df['TEST_DATE'] - df['TEST_DATE'].min()).dt.days
+
+    df['decline_rate'] = df['TSTOIL'].pct_change().fillna(0)
+    df['moving_avg'] = df['TSTOIL'].rolling(window=5, min_periods=1).mean()
+    df['exp_decline'] = df['TSTOIL'].ewm(span=10, adjust=False).mean()
+
+    # Outlier removal
+    def remove_outliers(df, col):
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        return df[(df[col] >= (Q1 - 1.5 * IQR)) & (df[col] <= (Q3 + 1.5 * IQR))]
+
+    for col in ['TSTOIL', 'TSTFLUID', 'decline_rate', 'moving_avg', 'exp_decline']:
+        df = remove_outliers(df, col)
+
+    X = df[['days', 'TSTFLUID', 'decline_rate', 'moving_avg', 'exp_decline']].values
+    y = df['TSTOIL'].values
+
+    # Reshape untuk prediksi
+    X_seq = X.reshape((X.shape[0], 1, X.shape[1]))
+    y_pred = model.predict(X_seq).flatten()
+
+    # Extrapolation
+    last_known = X[-1]
+    future_days = []
+    future_preds = []
+    last_day = int(last_known[0])
+    features = last_known[1:]
+    batch_size = 100
+    max_days = 1000  # Batas maksimum hari prediksi
+
+    while True:
+        batch_days = np.arange(last_day + 1, last_day + 1 + batch_size)
+        batch_input = np.tile(features, (batch_size, 1))
+        batch_data = np.column_stack([batch_days, batch_input]).reshape(batch_size, 1, -1)
+        batch_preds = model.predict(batch_data).flatten()
+
+        future_days.extend(batch_days.tolist())
+        future_preds.extend(batch_preds.tolist())
+
+        last_day = batch_days[-1]
+        if batch_preds[-1] <= elr or (last_day - int(last_known[0])) > max_days:
+            break
+
+    # Format tanggal
+    last_date = df['TEST_DATE'].iloc[-1]
+    future_dates = [(last_date + timedelta(days=int(d - last_known[0]))).strftime('%Y-%m-%d') for d in future_days]
+    history_dates = df['TEST_DATE'].dt.strftime('%Y-%m-%d').tolist()
+
+    return jsonify({
+        "dates_actual": history_dates,
+        "actual": y.tolist(),
+        "predicted": y_pred.tolist(),
+        "dates_extended": future_dates,
+        "extended_prediction": future_preds,
+        "elr_threshold": elr
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -730,4 +730,112 @@ document.addEventListener('DOMContentLoaded', () => {
     // Panggil fungsi fetchPredictionWithSelectedData
     fetchPredictionWithSelectedData(selectedData, elr);
   });
+
+  //Model ML DCA
+  document.getElementById('mlDCA').addEventListener('click', () => {
+    const selectedWell = document.getElementById('wellDropdown').value;
+    const elr = document.getElementById('elr').value || 10; // Default ELR = 10 jika kosong
+
+    if (!selectedWell) {
+      alert("Please select a well to predict.");
+      return;
+    }
+
+    showLoading(); // Tampilkan loading spinner
+
+    fetch('http://127.0.0.1:5000/predict_ml', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        well: selectedWell,
+        elr: parseFloat(elr) // Pastikan ELR dikirim sebagai angka
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        hideLoading(); // Sembunyikan loading spinner
+
+        if (data.error) {
+          alert(`Error: ${data.error}`);
+          return;
+        }
+
+        // Data historis
+        const actualSeries = {
+          name: 'Actual Production',
+          type: 'line',
+          data: data.dates_actual.map((date, index) => ({
+            x: new Date(date),
+            y: data.actual[index]
+          })),
+          showMarker: true
+        };
+
+        // Prediksi historis (validasi model)
+        const predictedSeries = {
+          name: 'Predicted Production (Historical)',
+          type: 'line',
+          data: data.dates_actual.map((date, index) => ({
+            x: new Date(date),
+            y: data.predicted[index]
+          })),
+          showMarker: false,
+          hidden: true // Opsional: sembunyikan secara default
+        };
+
+        // Prediksi masa depan hingga ELR
+        const extendedSeries = {
+          name: 'ML Prediction (Future)',
+          type: 'line',
+          data: data.dates_extended.map((date, index) => ({
+            x: new Date(date),
+            y: data.extended_prediction[index]
+          })),
+          showMarker: false
+        };
+
+        // Garis ELR sebagai anotasi
+        const elrAnnotation = {
+          yaxis: [{
+            y: data.elr_threshold,
+            borderColor: '#ff0000',
+            label: {
+              text: `ELR: ${data.elr_threshold}`,
+              style: {
+                color: '#fff',
+                background: '#ff0000'
+              }
+            }
+          }]
+        };
+
+        // Filter series yang bukan prediksi ML sebelumnya
+        const filteredSeries = currentDataSeries.filter(series => !series.name.includes('ML Prediction'));
+        const newSeries = [...filteredSeries, actualSeries, predictedSeries, extendedSeries];
+        currentDataSeries = newSeries;
+
+        // Perbarui grafik
+        chart.updateOptions({
+          series: newSeries,
+          yaxis: getFinalAxisSeries(newSeries),
+          annotations: elrAnnotation
+        });
+        updateChartMarkerConfig(newSeries);
+      })
+      .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('An unexpected error occurred. Please try again.');
+      });
+  });
+
+  //reset button
+  document.getElementById('resetChart').addEventListener('click', () => {
+    // Reload halaman untuk mengembalikan semua state ke kondisi awal
+    window.location.reload();
+  });
+
+
 });
