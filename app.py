@@ -580,6 +580,7 @@ def automatic_dca_analysis():
         selected_data = data.get('selected_data')
         custom_filter = data.get('custom_filter')
 
+
         if selected_data:
             well_data_all = pd.DataFrame(selected_data)
             well_data_all['Date'] = pd.to_datetime(well_data_all['Date'])
@@ -612,7 +613,7 @@ def automatic_dca_analysis():
 
                 well_data_all = well_data_all[well_data_all['TEST_DATE'] >= start_date]
 
-        print("Selected Data oi: ", selected_data)
+        # print("Selected Data oi: ", selected_data)
         well_data_all = well_data_all.sort_values(by='TEST_DATE')
 
         validation_error = validate_dca_data(well_data_all)
@@ -626,14 +627,14 @@ def automatic_dca_analysis():
         # print("Setelah reset:", well_data_all.index)
         t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
         q = well_data_all['TSTOIL']
-
-        qi_initial = well_data_all['TSTOIL'].loc[0]
+        qi_initial = well_data_all['TSTOIL'].iloc[0]
+        print("qi data : ", qi_initial)
         exp_initial = [qi_initial, 0.01]
         harm_initial = [qi_initial, 0.01]
         hyper_initial = [qi_initial, 0.01, 1.0]
         hyper_bounds = ([0, 0, 0], [np.inf, 1.0, 2])
 
-        print("qi data : ", qi_initial)
+
 
         # DCA using curve fit
 #         exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
