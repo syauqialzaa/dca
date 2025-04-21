@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 from dca_model import analyze_dca
 import logging
-# import tensorflow as tf
+import tensorflow as tf
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 logging.basicConfig(level=logging.DEBUG)
@@ -25,7 +25,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Load model once on startup
-# model = tf.keras.models.load_model("hybrid_tft_lstm_model.h5")
+model = tf.keras.models.load_model("hybrid_tft_lstm_model.h5")
 
 # # Load trained models
 # depth_model = joblib.load('depth_model.pkl')
@@ -847,10 +847,12 @@ def predictml():
     future_preds = []
     last_day = int(last_known[0])
     features = last_known[1:]
-    batch_size = 100
-    max_days = 1000  # Batas maksimum hari prediksi
+    batch_size = 10
+    max_days = 100  # Batas maksimum hari prediksi
 
-    while True:
+    max_iterations = 10  # Batas maksimum iterasi
+    iteration = 5
+    while iteration < max_iterations:
         batch_days = np.arange(last_day + 1, last_day + 1 + batch_size)
         batch_input = np.tile(features, (batch_size, 1))
         batch_data = np.column_stack([batch_days, batch_input]).reshape(batch_size, 1, -1)
