@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const startDateInput = document.getElementById('startDate');
+  const endDateInput   = document.getElementById('endDate');
+
+  const params = new URLSearchParams(window.location.search);
+
+  // get_history parse params
+  const initialWell  = params.get('well')       || '';
+  const initialStart = params.get('start_date') || '';
+  const initialEnd   = params.get('end_date')   || '';
+
+  // automatic_dca parse params
+  const selectedDataParam = params.get('selected_data');
+  const dateRangeParam = params.get('date_range');
+  const productionRangeParam = params.get('production_range');
+
   const wellDropdown = document.getElementById('wellDropdown');
   const filterButton = document.getElementById('filterButton');
   const chartElement = document.getElementById('chart');
@@ -333,60 +348,77 @@ document.addEventListener('DOMContentLoaded', () => {
     chartElement.style.display = 'block';
   };
 
+  let initialSelectedData = [];
+  if (selectedDataParam) {
+    try {
+      initialSelectedData = JSON.parse(selectedDataParam);
+    } catch (err) {
+      console.warn('bad selected_data JSON:', err);
+    }
+  }
+
+  const dateRange = dateRangeParam
+    ? dateRangeParam.split(',')
+    : [];
+  const productionRange = productionRangeParam
+    ? productionRangeParam.split(',').map(Number)
+    : [];
+
   // Fetch well data from Flask backend
   fetch('http://127.0.0.1:5000/get_wells')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error("Failed to fetch well data");
-      }
-      return response.json();
-    })
+    .then(res => res.json())
     .then(data => {
-      // Clear existing options
-      wellDropdown.innerHTML = '<option value="">Select...</option>';
+      wellDropdown.innerHTML = '<option value="">All Wells</option>';
+      data.wells.forEach(w => {
+        const o = document.createElement('option');
+        o.value = w;
+        o.textContent = w;
+        if (w === initialWell) o.selected = true;
+        wellDropdown.appendChild(o);
+      });
 
-      // Populate dropdown with wells
-      if (data.wells) {
-        data.wells.forEach(well => {
-          const option = document.createElement("option");
-          option.value = well;
-          option.textContent = well;
-          wellDropdown.appendChild(option);
-        });
+      if (initialStart) startDateInput.value = initialStart;
+      if (initialEnd)   endDateInput.value   = initialEnd;
+
+      fetchHistory(initialWell, initialStart, initialEnd);
+      selectedPredictData = initialSelectedData;
+
+      const hasSelectedDataParam    = params.has('selected_data');
+      const hasDateRangeParam       = params.has('date_range');
+      const hasProductionRangeParam = params.has('production_range');
+
+      if (hasSelectedDataParam || hasDateRangeParam || hasProductionRangeParam) {
+        document.getElementById('automateDCA').click();
       }
     })
-    .catch(error => {
-      console.error("Error loading wells:", error);
+    .catch(err => {
+      console.error('Error loading wells:', err);
       wellDropdown.innerHTML = '<option value="">Failed to load</option>';
     });
 
-  const fetchHistory = (well, startDate, endDate) => {
-    showLoading(); // Show loading spinner
-    fetch('http://127.0.0.1:5000/get_history', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ well, start_date: startDate, end_date: endDate }),
-    })
-      .then((response) => {
+  const fetchHistory = (well = '', startDate = '', endDate = '') => {
+    showLoading();
+    const params = new URLSearchParams();
+    if (well)       params.append('well', well);
+    if (startDate)  params.append('start_date', startDate);
+    if (endDate)    params.append('end_date', endDate);
+
+    const url = `http://127.0.0.1:5000/get_history?${params.toString()}`;
+
+    fetch(url, { method: 'GET' })
+      .then(response => {
         if (!response.ok) {
           throw new Error(`Server Error: ${response.status}`);
         }
         return response.json();
       })
-      .then((data) => {
-        console.log("Data received from backend:", data); // Debugging data received
-        hideLoading(); // Hide loading spinner
-
+      .then(data => {
+        hideLoading();
         if (!data || data.length === 0) {
-          console.warn("No data available for the given filters.");
-          displayedData = [];
-          showNoData(); // Show "No Data Found" if no data
+          showNoData();
           return;
         }
-
-        hideNoData(); // Hide "No Data Found" message
+        hideNoData();
 
         productionData = data;
         // Transform data for chart
@@ -436,73 +468,64 @@ document.addEventListener('DOMContentLoaded', () => {
           series: currentDataSeries,
           yaxis:baseYAxis
         })
-        // // Update chart series
-        // chart.updateSeries(currentDataSeries)
-        //   .then(() => {
-        //     console.log("Chart updated successfully.", chart.opts.series);
-        //   })
-        //   .catch((error) => {
-        //     console.error("Error updating chart series:", error);
-        //   });
-        //   updateChartMarkerConfig(currentDataSeries)
-
         console.log("Chart Options after update:", chart.opts);
       })
-      .catch((error) => {
-        hideLoading(); // Hide loading spinner even on error
+      .catch(error => {
+        hideLoading();
         console.error('Error fetching history:', error);
-        showNoData(); // Optionally show "No Data Found" on error
+        showNoData();
       });
   };
-
-
 
   // Fetch default data (last 12 months) on page load
   fetchHistory();
 
-  // Filter data based on user input
   filterButton.addEventListener('click', () => {
-    const selectedWell = wellDropdown.value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    fetchHistory(selectedWell, startDate, endDate);
+    fetchHistory(
+      wellDropdown.value,
+      startDateInput.value,
+      endDateInput.value
+    );
   });
 
   document.getElementById('automateDCA').addEventListener('click', function () {
-    const selectedWell = document.getElementById('wellDropdown').value;
-    currentState = '';
-    selectedPredictObject = undefined;
-    if (!selectedWell) {
-      alert("Please select a well.");
-      return;
+    const well = document.getElementById('wellDropdown').value;
+    if (!well) {
+      return alert('Please select a well.');
     }
 
-    const loadingMessage = document.getElementById('loadingMessage');
-    loadingMessage.style.display = 'block';
+    const selected_data = selectedPredictData.map(it => ({
+      Date:       it.Date,
+      Production: it.Production,
+      Fluid:      it.Fluid
+    }));
 
-    const selected_data = selectedPredictData?.map((it, index) => {
-      return {
-        Date: it.Date,
-        Production: it.Production,
-        Fluid: it.Fluid
-      }
-    }) ?? undefined;
+    const params = new URLSearchParams();
+    params.append('well', well);
 
+    if (selected_data.length) {
+      params.append('selected_data', JSON.stringify(selected_data));
+    }
+    if (dateRange.length === 2) {
+      params.append('date_range', dateRange.join(','));
+    }
+    if (productionRange.length === 2) {
+      params.append('production_range', productionRange.join(','));
+    }
 
-    fetch('http://127.0.0.1:5000/automatic_dca', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ well: selectedWell, selected_data })
+    document.getElementById('loadingMessage').style.display = 'block';
+
+    fetch(`http://127.0.0.1:5000/automatic_dca?${params.toString()}`, {
+      method: 'GET'
     })
-      .then(response => response.json())
+      .then(r => {
+        document.getElementById('loadingMessage').style.display = 'none';
+        if (!r.ok) throw new Error(`Server ${r.status}`);
+        return r.json();
+      })
       .then(data => {
-        loadingMessage.style.display = 'none';
-
         if (data.error) {
-          alert(`Error: ${data.error}`);
-          return;
+          return alert(`Error: ${data.error}`);
         }
 
         // **✅ Update nilai Decline Rate di Frontend**
@@ -619,10 +642,10 @@ document.addEventListener('DOMContentLoaded', () => {
         updateChartMarkerConfig(finalSeries)
 
       })
-      .catch(error => {
-        loadingMessage.style.display = 'none';
-        console.error('Error:', error);
-        alert('An unexpected error occurred. Please try again.');
+      .catch(err => {
+        document.getElementById('loadingMessage').style.display = 'none';
+        console.error(err);
+        alert('An unexpected error occurred.');
       });
   });
 
@@ -637,7 +660,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Kirim data ke backend
     console.log("well", selectedWell)
     console.log("elr", elr)
     const latestItem = {
@@ -831,7 +853,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   });
 
-  //reset button
   document.getElementById('resetChart').addEventListener('click', () => {
     // Reload halaman untuk mengembalikan semua state ke kondisi awal
     window.location.reload();

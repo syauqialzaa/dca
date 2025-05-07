@@ -217,13 +217,17 @@ def get_wells():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/get_history', methods=['POST'])
+@app.route('/get_history', methods=['GET', 'POST'])
 def get_history():
-    # Receive request data from frontend
-    request_data = request.get_json()
-    selected_well = request_data.get('well', None)
-    start_date = request_data.get('start_date', None)
-    end_date = request_data.get('end_date', None)
+    if request.method == 'GET':
+        selected_well = request.args.get('well', None)
+        start_date   = request.args.get('start_date', None)
+        end_date     = request.args.get('end_date', None)
+    else:
+        req = request.get_json()
+        selected_well = req.get('well', None)
+        start_date   = req.get('start_date', None)
+        end_date     = req.get('end_date', None)
 
     # Load and preprocess data
     data = pd.read_excel(file_path)
@@ -569,17 +573,40 @@ def evaluate_model(t, q_actual, model_func, params):
         "prediction": q_pred
     }
 
-
-@app.route('/automatic_dca', methods=['POST'])
+@app.route('/automatic_dca', methods=['GET', 'POST'])
 def automatic_dca_analysis():
     global latest_dca_result
 
     try:
-        data = request.get_json()
-        well = data.get('well')
-        selected_data = data.get('selected_data')
-        custom_filter = data.get('custom_filter')
+        if request.method == 'GET':
+            well = request.args.get('well')
+            sel_data_str = request.args.get('selected_data', '[]')
+            try:
+                selected_data = json.loads(sel_data_str)
+            except ValueError:
+                return jsonify({"error": "Invalid JSON in selected_data"}), 400
 
+            cf = {}
+            date_range_str = request.args.get('date_range')
+            prod_range_str = request.args.get('production_range')
+            if date_range_str:
+                start, end = date_range_str.split(',', 1)
+                cf['date_range'] = [start, end]
+            if prod_range_str:
+                lo, hi = prod_range_str.split(',', 1)
+                cf['production_range'] = [float(lo), float(hi)]
+
+            custom_filter = cf if cf else None
+
+        else:
+            payload       = request.get_json()
+            well          = payload.get('well')
+            selected_data = payload.get('selected_data', [])
+            custom_filter = payload.get('custom_filter')
+
+        print("Well:", well)
+        print("Selected Data:", selected_data)
+        print("Custom Filter:", custom_filter)
 
         if selected_data:
             well_data_all = pd.DataFrame(selected_data)
@@ -620,11 +647,6 @@ def automatic_dca_analysis():
         if validation_error:
             return jsonify({"error": validation_error}), 400
 
-        # print("Sebelum filter:", well_data_all.index)
-        # well_data_all = well_data_all[(well_data_all['TSTOIL'].diff().fillna(0) != 0) | (well_data_all['TSTFLUID'].diff().fillna(0) != 0)]
-        # print("Setelah filter:", well_data_all.index)
-        # well_data_all = well_data_all.reset_index(drop=True)
-        # print("Setelah reset:", well_data_all.index)
         t = (well_data_all['TEST_DATE'] - well_data_all['TEST_DATE'].min()).dt.days
         q = well_data_all['TSTOIL']
         qi_initial = well_data_all['TSTOIL'].iloc[0]
@@ -633,13 +655,6 @@ def automatic_dca_analysis():
         harm_initial = [qi_initial, 0.01]
         hyper_initial = [qi_initial, 0.01, 1.0]
         hyper_bounds = ([0, 0, 0], [np.inf, 1.0, 2])
-
-
-
-        # DCA using curve fit
-#         exp_params, _ = curve_fit(exponential_decline, t, q, p0=exp_initial, maxfev=10000)
-#         harm_params, _ = curve_fit(harmonic_decline, t, q, p0=harm_initial, maxfev=10000)
-#         hyper_params, _ = curve_fit(hyperbolic_decline, t, q, p0=hyper_initial, bounds=hyper_bounds, maxfev=10000)
 
         # Parameter awal alternatif untuk grid search
         qi = qi_initial
@@ -689,10 +704,6 @@ def automatic_dca_analysis():
         # Faktor konversi ke persentase
         PERCENTAGE_FACTOR = 100
 
-#         exp_eval = evaluate_model(t, q, exponential_decline, exp_params)
-#         harm_eval = evaluate_model(t, q, harmonic_decline, harm_params)
-#         hyper_eval = evaluate_model(t, q, hyperbolic_decline, hyper_params)
-
         exp_eval_excel = evaluate_model(t, q, exponential_decline, exp_params_excel)
         harm_eval_excel = evaluate_model(t, q, harmonic_decline, harm_params_excel)
         hyper_eval_excel = evaluate_model(t, q, hyperbolic_decline, hyper_params_excel)
@@ -706,9 +717,6 @@ def automatic_dca_analysis():
             "Exponential": exp_params,
             "Harmonic": harm_params,
             "Hyperbolic": hyper_params,
-#             "Exponential": [round(value, 4) for value in exp_params.tolist()],
-#             "Harmonic": [round(value, 4) for value in harm_params.tolist()],
-#             "Hyperbolic": [round(value, 4) for value in hyper_params.tolist()],
             "DeclineRate": {
                             "Exponential": round(exp_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
                             "Harmonic": round(harm_params[1] * DAYS_PER_YEAR * PERCENTAGE_FACTOR, 2),
@@ -721,8 +729,6 @@ def automatic_dca_analysis():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 @app.route('/predict_production', methods=['POST'])
 def predict_production():
