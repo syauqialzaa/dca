@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     : [];
 
   // Fetch well data from Flask backend
-  fetch('http://127.0.0.1:5000/get_wells')
+  fetch('https://1cd8-202-43-95-42.ngrok-free.app/get_wells')
     .then(res => res.json())
     .then(data => {
       wellDropdown.innerHTML = '<option value="">All Wells</option>';
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startDate)  params.append('start_date', startDate);
     if (endDate)    params.append('end_date', endDate);
 
-    const url = `http://127.0.0.1:5000/get_history?${params.toString()}`;
+    const url = `https://1cd8-202-43-95-42.ngrok-free.app/get_history?${params.toString()}`;
 
     fetch(url, { method: 'GET' })
       .then(response => {
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('loadingMessage').style.display = 'block';
 
-    fetch(`http://127.0.0.1:5000/automatic_dca?${params.toString()}`, {
+    fetch(`https://1cd8-202-43-95-42.ngrok-free.app/automatic_dca?${params.toString()}`, {
       method: 'GET'
     })
       .then(r => {
@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     console.log("selectedData", latestItem)
-    fetch('http://127.0.0.1:5000/predict_production', {
+    fetch('https://1cd8-202-43-95-42.ngrok-free.app/predict_production', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showLoading(); // Tampilkan loading spinner
 
-    fetch('http://127.0.0.1:5000/predict_ml', {
+    fetch('https://1cd8-202-43-95-42.ngrok-free.app/predict_ml', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

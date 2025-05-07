@@ -506,37 +506,6 @@ def calculate_ml():
         print(f"Error in /calculate_ml: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-# @app.route('/calculate_dca2', methods=['POST'])
-# def calculate_dca_endpoint():
-#     try:
-#         data = request.get_json()
-#         well = data['well']
-#         start_date = data['start_date']
-#         end_date = data['end_date']
-#
-#         # Load the dataset and filter based on well and date
-#         filtered_data = load_filtered_data(well, start_date, end_date)
-#
-#         # Calculate DCA
-#         results = analyze_dca(filtered_data)
-#
-#         # Convert NumPy arrays to lists for JSON serialization
-#         results['exp_fit'] = results['exp_fit'].tolist()
-#         results['harm_fit'] = results['harm_fit'].tolist()
-#         results['hyper_fit'] = results['hyper_fit'].tolist()
-#
-#         # Convert dates to strings
-#         results['start_date'] = str(results['start_date'])
-#         results['mid_date'] = str(results['mid_date'])
-#         results['end_date'] = str(results['end_date'])
-#
-#         return jsonify(results), 200
-#
-#     except Exception as e:
-#         print(e)
-#         return jsonify({'error': 'An unexpected error occurred. Please try again.'}), 500
-
 def safe_curve_fit(model_func, t, q, param_grid, bounds=None, maxfev=10000):
     best_params = None
     lowest_error = float('inf')
