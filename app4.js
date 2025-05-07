@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const API_BASE = "https://seagull-literate-rat.ngrok-free.app"
+  // const API_BASE = "http://127.0.0.1:8000"
+
   const startDateInput = document.getElementById('startDate');
   const endDateInput   = document.getElementById('endDate');
 
@@ -365,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     : [];
 
   // Fetch well data from Flask backend
-  fetch('https://1cd8-202-43-95-42.ngrok-free.app/get_wells')
+  fetch(`${API_BASE}/get_wells`)
     .then(res => res.json())
     .then(data => {
       wellDropdown.innerHTML = '<option value="">All Wells</option>';
@@ -403,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startDate)  params.append('start_date', startDate);
     if (endDate)    params.append('end_date', endDate);
 
-    const url = `https://1cd8-202-43-95-42.ngrok-free.app/get_history?${params.toString()}`;
+    const url = `${API_BASE}/get_history?${params.toString()}`;
 
     fetch(url, { method: 'GET' })
       .then(response => {
@@ -515,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('loadingMessage').style.display = 'block';
 
-    fetch(`https://1cd8-202-43-95-42.ngrok-free.app/automatic_dca?${params.toString()}`, {
+    fetch(`${API_BASE}/automatic_dca?${params.toString()}`, {
       method: 'GET'
     })
       .then(r => {
@@ -668,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     console.log("selectedData", latestItem)
-    fetch('https://1cd8-202-43-95-42.ngrok-free.app/predict_production', {
+    fetch(`${API_BASE}/predict_production`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -765,7 +768,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showLoading(); // Tampilkan loading spinner
 
-    fetch('https://1cd8-202-43-95-42.ngrok-free.app/predict_ml', {
+    fetch(`${API_BASE}/predict_ml`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
