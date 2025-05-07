@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const API_BASE = "https://seagull-literate-rat.ngrok-free.app"
-  // const API_BASE = "http://127.0.0.1:8000"
+  // const API_BASE = "https://seagull-literate-rat.ngrok-free.app"
+  const API_BASE = "http://127.0.0.1:8000"
 
   const startDateInput = document.getElementById('startDate');
   const endDateInput   = document.getElementById('endDate');
