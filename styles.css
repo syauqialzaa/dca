@@ -1,319 +1,1033 @@
-/* Style for container */
+:root {
+  /* Color palette */
+  --primary: #000957;
+  --primary-light: #344CB7;
+  --primary-dark: #577BC1;
+  --secondary: #00cec9;
+  --secondary-dark: #00b5b1;
+  --accent: #fd79a8;
+  --success: #00b894;
+  --warning: #fdcb6e;
+  --danger: #d63031;
+  --light: #f9f9f9;
+  --dark: #2d3436;
+  --gray-100: #f9f9f9;
+  --gray-200: #e2e2e2;
+  --gray-300: #d1d1d1;
+  --gray-400: #b8b8b8;
+  --gray-500: #8d8d8d;
+  --gray-600: #6b6b6b;
+  --gray-700: #4a4a4a;
+  --gray-800: #2d2d2d;
+  --gray-900: #1a1a1a;
+
+  /* Spacing system */
+  --spacing-xs: 0.375rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1.25rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+
+  /* Styling variables */
+  --border-radius-sm: 6px;
+  --border-radius: 12px;
+  --border-radius-lg: 24px;
+  --box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Animation variables */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Base styles and reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Animation for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  font-family: Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+  line-height: 1.7;
+  color: var(--gray-800);
+  background-color: #f0f2f5;
+  padding: var(--spacing-md);
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(108, 92, 231, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(0, 206, 201, 0.03) 0%, transparent 50%);
+  animation: backgroundShift 15s ease-in-out infinite alternate;
+}
+
+@keyframes backgroundShift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
 h1 {
-  margin-bottom: 20px;
-}
-
-.custom-tooltip {
-  background-color: #fff; /* White background */
-  padding-top: 12px; /* Comfortable padding */
-  padding-left: 12px;
-  padding-right: 12px;
-  flex-direction: column;
-  align-items: start;
-
-}
-
-.custom-tooltip .date {
-  font-size: 14px; /* Slightly larger font for the date */
-  font-weight: bold; /* Emphasize the date */
-  color: #000; /* Darker color for better visibility */
-  margin-bottom: 8px; /* Add spacing below the date */
-  display: block;
-  text-align: center; /* Center-align the date */
-}
-
-.custom-tooltip-content {
-  font-size: 14px;
-}
-
-div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-/* Additional styles for the form section */
-.form-group {
-  display: inline-block;
-  margin-right: 10px;
-}
-
-/* Tambahkan margin untuk jarak antar elemen */
-label, select, input, button {
-  margin: 0 10px;
-  padding: 8px;
-  font-size: 14px;
-  border-radius: 5px;
-}
-
-/* Dropdown select styling */
-select {
-  padding: 10px 15px;
-  font-size: 16px;
-  color: #333;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  outline: none;
-  cursor: pointer;
-  transition: all 0.3s ease-in-out;
-}
-
-select:hover {
-  border-color: #007bff;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-select:focus {
-  border-color: #0056b3;
-  box-shadow: 0px 4px 8px rgba(0, 86, 179, 0.2);
-}
-
-/* Style for input fields (Start Date and End Date) */
-input[type="date"] {
-  padding: 8px 12px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  outline: none;
-  transition: border-color 0.3s ease;
-}
-
-input[type="date"]:focus {
-  border-color: #007bff;
-}
-
-/* Gaya khusus untuk input ELR */
-input#elr {
-  width: 60px; /* Atur lebar agar proporsional */
-  text-align: center; /* Letakkan teks di tengah */
-  border: 1px solid #ccc; /* Border yang lembut */
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-/* Style for buttons */
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  font-weight: bold;
-  color: #fff;
-  background-color: #007bff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  max-width: 200px;
-}
-
-button:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
-}
-
-button:active {
-  background-color: #003d80;
-}
-
-/* Add spacing between buttons and fields */
-#filter-btn {
-  margin-left: 10px;
-}
-
-#analyze-btn {
-  margin-top: 20px;
-  background-color: #28a745; /* Green for Analyze button */
-}
-
-#analyze-btn:hover {
-  background-color: #218838;
-}
-
-#analyze-btn:active {
-  background-color: #19692c;
-}
-
-#loading {
+  font-family: Oxygen, 'Segoe UI', Roboto, sans-serif;
+  color: var(--primary);
+  margin: var(--spacing-lg) 0 var(--spacing-xl);
+  font-size: 2.5rem;
+  font-weight: 800;
   text-align: center;
-  font-size: 1.2em;
-  font-weight: bold;
-  color: #007bff;
+  letter-spacing: -0.03em;
+  text-shadow: 1px 1px 0 rgba(108, 92, 231, 0.1);
+  position: relative;
+  animation: slideDown 0.8s var(--transition-bounce) both;
 }
 
-#noData {
-  font-size: 1.2em;
-  font-weight: bold;
-  color: red;
-  text-align: center;
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Container for both sections */
+h1::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  border-radius: 2px;
+  animation: expandWidth 1s var(--transition-bounce) both;
+  animation-delay: 0.3s;
+}
+
+@keyframes expandWidth {
+  0% {
+    width: 0;
+    opacity: 0;
+  }
+  100% {
+    width: 80px;
+    opacity: 1;
+  }
+}
+
+/* Main layout - with animation */
 .container {
-  display: flex;
-  justify-content: space-between; /* Align items to the start */
-  align-items: center; /* Align sections at the top */
-  gap: 10px; /* Reduce gap between sections */
-  margin-bottom: 20px; /* Add spacing below the container */
-  flex-wrap: wrap; /* Allow wrapping for smaller screens */
+  max-width: 1300px;
+  margin: 0 auto var(--spacing-xl) auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+  animation: fadeIn 0.8s var(--transition) both;
+  animation-delay: 0.2s;
 }
 
-/* Styling for filter and DCA sections */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 992px) {
+  .container {
+    grid-template-columns: 350px 1fr;
+    align-items: start;
+  }
+}
+
+/* Filter and DCA sections - with animations */
 .filter-section, #dca-options {
-  background-color: lightgrey;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around; /* Membuat elemen tersebar dengan baik */
-  flex-wrap: wrap; /* Memungkinkan elemen untuk berpindah baris di layar kecil */
-  padding: 15px;
-  gap: 15px;
-  width: 100%;
-  max-width: 1200px; /* Atur batas maksimum agar tidak terlalu melebar */
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: var(--spacing-lg);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition);
 }
 
-/* Adjust section widths to align properly */
 .filter-section {
-  flex: 1; /* Make the filter section take available space */
+  animation: slideInLeft 0.8s var(--transition) both;
+  animation-delay: 0.4s;
 }
 
 #dca-options {
-  flex: 0 0 auto; /* Prevent DCA options from stretching */
-  display: flex;
-  align-items: center;
-  gap: 10px; /* Add spacing between buttons */
+  animation: slideInRight 0.8s var(--transition) both;
+  animation-delay: 0.6s;
 }
 
-/* Styling for individual groups */
-.filter-group {
-  /*display: flex;*/
-  /*flex-direction: column;*/
-  /*align-items: flex-start;*/
-  /*margin-right: 10px; !* Add some margin between groups *!*/
+@keyframes slideInLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.filter-section:hover, #dca-options:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--card-shadow);
+}
+
+.filter-section::before, #dca-options::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  animation: gradientShift 3s ease infinite;
+  background-size: 200% 200%;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Filter section - vertical layout */
+.filter-section {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  font-size: 14px;
-  font-weight: bold;
+  gap: var(--spacing-md);
+  border-bottom: none;
 }
 
-#dcaSection {
-  background-color: lightgrey;
-  border-radius: 10px;
+.filter-group {
   display: flex;
-  align-items: center;
-  justify-content: space-around; /* Membuat elemen tersebar dengan baik */
-  flex-wrap: wrap; /* Memungkinkan elemen untuk berpindah baris di layar kecil */
-  padding: 15px;
-  gap: 15px;
+  flex-direction: column;
   width: 100%;
-  max-width: 1200px; /* Atur batas maksimum agar tidak terlalu melebar */
+  position: relative;
+  animation: fadeInUp 0.5s var(--transition) both;
+  animation-delay: calc(0.6s + var(--animation-order, 0) * 0.1s);
 }
 
-/* Decline Rate Section in Horizontal Layout */
-#decline-rate-section {
-  background-color: lightgrey;
-  padding: 10px;
-  border-radius: 10px;
-  /*box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);*/
-  text-align: center;
-  display: flex;
-  flex-direction: row; /* Change from column to row */
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  /*min-width: 400px;*/
-  /*max-width: fit-content;*/
+.filter-section .filter-group:nth-child(1) { --animation-order: 1; }
+.filter-section .filter-group:nth-child(2) { --animation-order: 2; }
+.filter-section .filter-group:nth-child(3) { --animation-order: 3; }
+.filter-section .filter-group:nth-child(4) { --animation-order: 4; }
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Styling for Decline Rate Items */
+.filter-group label {
+  margin-bottom: var(--spacing-xs);
+  font-weight: 700;
+  color: var(--gray-700);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color var(--transition-fast);
+}
+
+.filter-group:focus-within label {
+  color: var(--primary);
+}
+
+.filter-group select,
+.filter-group input {
+  height: 3rem;
+  padding: 0 var(--spacing-md);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius-sm);
+  font-size: 1rem;
+  background-color: #fff;
+  transition: all var(--transition);
+  width: 100%;
+  font-family: 'Nunito', sans-serif;
+}
+
+.filter-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c5ce7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Input focus animation */
+.filter-group::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--primary);
+  transition: width var(--transition), left var(--transition);
+}
+
+.filter-group:focus-within::after {
+  width: 100%;
+  left: 0;
+}
+
+/* DCA Options Section - new grid layout with animations */
+#dcaSection {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--spacing-md);
+}
+
 .decline-rate {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  gap: 5px;
-  min-width: 100px; /* Supaya tidak mengecil terlalu banyak */
+  animation: fadeInUp 0.5s var(--transition) both;
+  animation-delay: calc(0.8s + var(--animation-order, 0) * 0.1s);
+}
+
+#dcaSection .decline-rate:nth-child(1) { --animation-order: 1; }
+#dcaSection .decline-rate:nth-child(2) { --animation-order: 2; }
+#dcaSection .decline-rate:nth-child(3) { --animation-order: 3; }
+#dcaSection .decline-rate:nth-child(4) { --animation-order: 4; }
+
+.decline-rate label {
+  margin-bottom: var(--spacing-xs);
+  font-weight: 700;
+  color: var(--gray-700);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color var(--transition-fast);
+}
+
+.decline-rate:focus-within label {
+  color: var(--primary);
 }
 
 .decline-rate input {
+  height: 3rem;
+  padding: 0 var(--spacing-sm);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius-sm);
+  font-size: 1rem;
+  width: 100%;
   text-align: center;
-  width: 80px; /* Lebar yang lebih konsisten */
+  font-weight: 600;
+  color: var(--primary) !important;
+  font-family: 'Nunito', sans-serif;
+  transition: all var(--transition);
 }
 
-button.btn {
-  white-space: nowrap; /* Mencegah teks dalam tombol terpotong */
-  padding: 10px 15px;
-  font-size: 14px;
-  text-align: center;
+.decline-rate input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+  transform: translateY(-2px);
 }
 
-/* Ensure alignment for labels and values */
-.decline-rate label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #555;
+/* Buttons - with animations */
+button {
+  height: 3rem;
+  padding: 0 var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  font-family: 'Nunito', sans-serif;
+  animation: fadeInUp 0.5s var(--transition) both;
+  animation-delay: calc(1s + var(--animation-order, 0) * 0.1s);
 }
 
-.decline-rate span {
-  font-size: 14px;
-  font-weight: bold;
-  color: #007bff;
+#dcaSection button:nth-child(5) { --animation-order: 5; }
+#dcaSection button:nth-child(6) { --animation-order: 6; }
+#dcaSection button:nth-child(7) { --animation-order: 7; }
+#dcaSection button:nth-child(8) { --animation-order: 8; }
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+  z-index: -1;
+  transition: var(--transition);
 }
-/* Media Query untuk tampilan lebih kecil */
-@media (max-width: 1024px) {
+
+button:hover::before {
+  left: 100%;
+  transition: 0.7s ease-in-out;
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(0deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0) 50%);
+  z-index: -2;
+}
+
+button:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+button:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#filterButton {
+  background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white;
+  width: 100%;
+  margin-top: var(--spacing-sm);
+  animation: pulseButton 2s infinite;
+  animation-delay: 2s;
+}
+
+@keyframes pulseButton {
+  0% {
+    box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(108, 92, 231, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(108, 92, 231, 0);
+  }
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white;
+  margin-right: var(--spacing-sm);
+}
+
+.btn-secondary {
+  background: linear-gradient(45deg, var(--danger) 0%, #ff6b6b 100%);
+  color: white;
+}
+
+/* Button container for DCA section */
+#dcaSection .btn-primary,
+#dcaSection .btn-secondary {
+  grid-column: span 1;
+}
+
+@media (min-width: 768px) {
   #dcaSection {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .decline-rate {
-    flex-direction: row; /* Ubah dari column ke row */
-    justify-content: space-between;
-    width: 100%;
-    max-width: 400px;
-  }
-
-  button.btn {
-    width: 100%; /* Agar tombol lebih besar di layar kecil */
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
 
-/* Responsive layout for smaller screens */
-@media (max-width: 768px) {
+/* Chart area - with animations */
+#chart {
+  width: 100%;
+  height: 550px;
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: var(--spacing-lg);
+  grid-column: 1 / -1;
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUp 0.8s var(--transition) both;
+  animation-delay: 1.2s;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+#chart:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.1), 0 15px 15px -5px rgba(0, 0, 0, 0.04);
+}
+
+#chart::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  animation: gradientShift 3s ease infinite;
+  background-size: 200% 200%;
+}
+
+/* Animated chart background */
+#chart::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(circle at 10% 90%, rgba(108, 92, 231, 0.03) 0%, transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(0, 206, 201, 0.03) 0%, transparent 30%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 1s ease;
+  animation: chartBgPulse 10s ease-in-out infinite alternate;
+}
+
+#chart:hover::after {
+  opacity: 1;
+}
+
+@keyframes chartBgPulse {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+/* Loading and no data messages - with animations */
+#loadingMessage, #loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  font-size: 1.1rem;
+  color: var(--gray-600);
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: var(--border-radius);
+  position: relative;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+#loadingMessage::after, #loading::after {
+  content: "";
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(108, 92, 231, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  margin-left: var(--spacing-sm);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+#noData {
+  text-align: center;
+  padding: var(--spacing-xl);
+  font-size: 1.1rem;
+  color: var(--danger);
+  font-weight: 700;
+  background-color: rgba(214, 48, 49, 0.05);
+  border-radius: var(--border-radius);
+  border: 2px solid rgba(214, 48, 49, 0.1);
+  animation: shakeError 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 991px) {
   .container {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px; /* Increase spacing for stacked layout */
+    grid-template-columns: 1fr;
+  }
+
+  #chart {
+    height: 450px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: var(--spacing-sm);
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin: var(--spacing-md) 0 var(--spacing-lg);
   }
 
   .filter-section, #dca-options {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .decline-rate {
-    flex-direction: column;
-    align-items: center;
+    padding: var(--spacing-md);
   }
 
   #dcaSection {
-    flex-direction: column;
-    align-items: center;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  button {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  #chart {
+    height: 400px;
+    padding: var(--spacing-md);
   }
 }
-.apexcharts-legend-group {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  justify-content: space-between !important;
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  #dcaSection {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-group label, .decline-rate label {
+    font-size: 0.8rem;
+  }
+
+  #chart {
+    height: 350px;
+  }
 }
 
-.apexcharts-legend-group-vertical {
-  flex-direction: row !important;
+/* Disabled input styling with animations */
+input:disabled {
+  background-color: var(--gray-100);
+  border: 2px solid var(--gray-200);
+  color: var(--gray-600);
+  cursor: not-allowed;
+  opacity: 0.8;
+  transition: var(--transition);
 }
 
+/* Override for specific disabled inputs that should look enabled */
+#exp-decline, #harm-decline, #hyper-decline {
+  background-color: white !important;
+  color: var(--primary) !important;
+  border: 2px solid var(--gray-200);
+  text-align: center;
+  font-weight: 700;
+  cursor: default;
+  transition: all var(--transition);
+}
 
+/* Value change animation */
+#exp-decline:not(:empty), #harm-decline:not(:empty), #hyper-decline:not(:empty) {
+  animation: valueChange 0.5s ease-in-out;
+}
+
+@keyframes valueChange {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(108, 92, 231, 0.1) !important;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Additional styling */
+input[type="date"] {
+  font-family: 'Nunito', sans-serif;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Date input animation */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-color: var(--primary-light);
+  padding: 5px;
+  border-radius: 3px;
+  transition: var(--transition);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: var(--primary);
+  cursor: pointer;
+}
+
+/* ApexCharts customization with animations */
+.apexcharts-tooltip {
+  border: none !important;
+  box-shadow: var(--box-shadow) !important;
+  border-radius: var(--border-radius-sm) !important;
+  font-family: 'Nunito', sans-serif !important;
+  animation: tooltipFadeIn 0.2s ease-in-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apexcharts-tooltip-title {
+  background: var(--primary) !important;
+  color: white !important;
+  font-weight: 700 !important;
+}
+
+.apexcharts-menu {
+  border: none !important;
+  box-shadow: var(--box-shadow) !important;
+  border-radius: var(--border-radius-sm) !important;
+  font-family: 'Nunito', sans-serif !important;
+  animation: menuFadeIn 0.2s ease-in-out;
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apexcharts-zoom-icon,
+.apexcharts-zoomin-icon,
+.apexcharts-zoomout-icon,
+.apexcharts-reset-icon,
+.apexcharts-menu-icon {
+  color: var(--primary) !important;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.apexcharts-zoom-icon:hover,
+.apexcharts-zoomin-icon:hover,
+.apexcharts-zoomout-icon:hover,
+.apexcharts-reset-icon:hover,
+.apexcharts-menu-icon:hover {
+  transform: scale(1.2);
+  color: var(--primary-dark) !important;
+}
+
+.apexcharts-legend-text {
+  color: var(--gray-800) !important;
+  font-weight: 600 !important;
+  font-family: 'Nunito', sans-serif !important;
+  transition: color var(--transition-fast);
+}
+
+.apexcharts-legend-text:hover {
+  color: var(--primary) !important;
+}
+
+.apexcharts-series-markers {
+  transition: transform var(--transition-fast);
+}
+
+.apexcharts-series-markers:hover {
+  transform: scale(1.2);
+}
+
+/* Add font imports */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@700;800&display=swap');
+
+/* Animated background for the page */
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Animated cursor for inputs */
+input:focus {
+  caret-color: var(--primary);
+  animation: caretBlink 1s infinite;
+}
+
+@keyframes caretBlink {
+  0%, 100% { caret-color: transparent; }
+  50% { caret-color: var(--primary); }
+}
+
+/* Button click effect */
+button:active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%, -50%);
+  transform-origin: 50% 50%;
+  animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0, 0) translate(-50%, -50%);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(20, 20) translate(-50%, -50%);
+    opacity: 0;
+  }
+}
+
+/* Animated focus indicator for buttons */
+button:focus {
+  outline: none;
+  animation: focusPulse 1.5s infinite;
+}
+
+@keyframes focusPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(108, 92, 231, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(108, 92, 231, 0);
+  }
+}
+
+/* Animated chart loading */
+#chart.loading::before {
+  content: "";
+  position: absolute;
+  top: 92, 231, 0;
+}
+
+/* Animated chart loading */
+#chart.loading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+#chart.loading::after {
+  content: "Loading data...";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 1.2rem;
+  z-index: 11;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* Animated selection for chart elements */
+.apexcharts-selected {
+  animation: selectedPulse 2s infinite;
+}
+
+@keyframes selectedPulse {
+  0% {
+    stroke-width: 2;
+  }
+  50% {
+    stroke-width: 3;
+  }
+  100% {
+    stroke-width: 2;
+  }
+}
+
+/* Animated data points */
+.apexcharts-marker {
+  transition: transform 0.2s ease;
+}
+
+.apexcharts-marker:hover {
+  transform: scale(1.5);
+}
+
+/* Page load sequence animation */
+body {
+  opacity: 0;
+  animation: pageLoad 1s forwards;
+  animation-delay: 0.2s;
+}
+
+@keyframes pageLoad {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Animated scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--primary), var(--secondary));
+  border-radius: 10px;
+  transition: var(--transition);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(var(--primary-dark), var(--secondary-dark));
+}
+
+/* Interactive hover effects for form elements */
+.filter-group select:hover,
+.filter-group input:hover,
+.decline-rate input:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+/* Success animation for form submission */
+@keyframes success {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 184, 148, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 184, 148, 0);
+  }
+}
+
+/* Apply success animation class */
+.success-animation {
+  animation: success 1s ease-in-out;
+  border-color: var(--success) !important;
+}
+
+/* Error animation for validation */
+@keyframes error {
+  0%, 100% {
+    border-color: var(--danger);
+  }
+  50% {
+    border-color: var(--gray-200);
+  }
+}
+
+/* Apply error animation class */
+.error-animation {
+  animation: error 0.5s ease-in-out 3;
+}
