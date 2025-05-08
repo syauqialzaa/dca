@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // const API_BASE = "https://seagull-literate-rat.ngrok-free.app"
-  const API_BASE = "http://127.0.0.1:8000"
+  const API_BASE = "https://seagull-literate-rat.ngrok-free.app/"
 
   const startDateInput = document.getElementById('startDate');
   const endDateInput   = document.getElementById('endDate');
@@ -368,7 +367,12 @@ document.addEventListener('DOMContentLoaded', () => {
     : [];
 
   // Fetch well data from Flask backend
-  fetch(`${API_BASE}/get_wells`)
+  fetch(`${API_BASE}/get_wells`, {
+      method: "GET",
+      headers: new Headers({
+        "ngrok-skip-browser-warning": true,
+      })
+    })
     .then(res => res.json())
     .then(data => {
       wellDropdown.innerHTML = '<option value="">All Wells</option>';
@@ -408,7 +412,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const url = `${API_BASE}/get_history?${params.toString()}`;
 
-    fetch(url, { method: 'GET' })
+    fetch(url, {
+      method: 'GET',
+      headers: new Headers({
+        "ngrok-skip-browser-warning": true,
+      })
+    })
       .then(response => {
         if (!response.ok) {
           throw new Error(`Server Error: ${response.status}`);
@@ -519,7 +528,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loadingMessage').style.display = 'block';
 
     fetch(`${API_BASE}/automatic_dca?${params.toString()}`, {
-      method: 'GET'
+      method: 'GET',
+      headers: new Headers({
+        "ngrok-skip-browser-warning": true,
+      })
     })
       .then(r => {
         document.getElementById('loadingMessage').style.display = 'none';
@@ -673,9 +685,10 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("selectedData", latestItem)
     fetch(`${API_BASE}/predict_production`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: new Headers({
+        'Content-Type': 'application/json',
+        "ngrok-skip-browser-warning": true,
+      }),
       body: JSON.stringify({
         well: selectedWell,
         economic_limit: elr, // Kirim ELR
@@ -770,9 +783,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fetch(`${API_BASE}/predict_ml`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: new Headers({
+        'Content-Type': 'application/json',
+        "ngrok-skip-browser-warning": true,
+      }),
       body: JSON.stringify({
         well: selectedWell,
         elr: parseFloat(elr) // Pastikan ELR dikirim sebagai angka
