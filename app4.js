@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Fetch well data from Flask backend
-  fetch('http://127.0.0.1:5000/get_wells')
+  fetch('http://127.0.0.1:8000/get_wells')
     .then(response => {
       if (!response.ok) {
         throw new Error("Failed to fetch well data");
@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const fetchHistory = (well, startDate, endDate) => {
     showLoading(); // Show loading spinner
-    fetch('http://127.0.0.1:5000/get_history', {
+    fetch('http://127.0.0.1:8000/get_history', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }) ?? undefined;
 
 
-    fetch('http://127.0.0.1:5000/automatic_dca', {
+    fetch('http://127.0.0.1:8000/automatic_dca', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -662,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     console.log("selectedData", latestItem)
-    fetch('http://127.0.0.1:5000/predict_production', {
+    fetch('http://127.0.0.1:8000/predict_production', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showLoading(); // Tampilkan loading spinner
 
-    fetch('http://127.0.0.1:5000/predict_ml', {
+    fetch('http://127.0.0.1:8000/predict_ml', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
